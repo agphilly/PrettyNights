@@ -1,0 +1,6 @@
+{
+  "name": "Pretty Nights",
+  "description": "An Android app that turns a bike's LED strip into a reactive lighting system based on GPS and accelerometer sensors.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
