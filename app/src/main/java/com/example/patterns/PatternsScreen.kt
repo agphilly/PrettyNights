@@ -68,8 +68,8 @@ fun PatternsScreen(
         coroutineScope.launch(Dispatchers.IO) {
             val controller = PrettyNightsApp.instance.wledController
             val fetchedPresets = controller.fetchPresets(host)
-            val fetchedEffects = controller.fetchEffects(host)
-            val fetchedPalettes = controller.fetchPalettes(host)
+            val fetchedEffects = if (fetchedPresets != null) controller.fetchEffects(host) else null
+            val fetchedPalettes = if (fetchedPresets != null) controller.fetchPalettes(host) else null
 
             withContext(Dispatchers.Main) {
                 isFetching = false

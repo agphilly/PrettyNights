@@ -48,6 +48,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.PrettyNightsApp
 import com.example.config.AppConfig
 import com.example.ride.RideService
+import com.example.ride.MusicService
+import android.media.projection.MediaProjectionManager
+import android.widget.Toast
 import com.example.statemachine.RideState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -84,6 +87,23 @@ fun HomeScreen(
     val isRunning by RideService.isServiceRunning.collectAsStateWithLifecycle()
     val activeState by RideService.activeRideState.collectAsStateWithLifecycle()
 
+    val isMusicRunning by MusicService.isServiceRunning.collectAsStateWithLifecycle()
+    val musicBands by MusicService.fftBands.collectAsStateWithLifecycle()
+    var selectedMode by remember { mutableStateOf("STANDARD") }
+    var microphoneGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    LaunchedEffect(isRunning, isMusicRunning) {
+        if (isRunning) {
+            selectedMode = "STANDARD"
+        } else if (isMusicRunning) {
+            selectedMode = "MUSIC"
+        }
+    }
+
     // 2. Readiness State Machine backing this Screen (Spec Section 3)
     var locationGranted by remember {
         mutableStateOf(
@@ -119,6 +139,12 @@ fun HomeScreen(
                 ) == PackageManager.PERMISSION_GRANTED
                 locationGranted = isFineGranted
 
+                val isMicGranted = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED
+                microphoneGranted = isMicGranted
+
                 if (!isFineGranted) {
                     val sharedPrefs = context.getSharedPreferences("pretty_nights_prefs", Context.MODE_PRIVATE)
                     val hasRequestedBefore = sharedPrefs.getBoolean("has_requested_location", false)
@@ -146,8 +172,8 @@ fun HomeScreen(
     }
 
     // Keep WLED state consistent when service starts/stops
-    LaunchedEffect(isRunning) {
-        if (isRunning) {
+    LaunchedEffect(isRunning, isMusicRunning) {
+        if (isRunning || isMusicRunning) {
             wledStatus = ScreenWledStatus.REACHABLE
         } else {
             checkWledReachability()
@@ -172,6 +198,30 @@ fun HomeScreen(
             permissionPermanentlyDenied = !showRationale
         } else {
             permissionPermanentlyDenied = false
+        }
+    }
+
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        microphoneGranted = granted
+    }
+
+    val mediaProjectionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+            val intent = Intent(context, MusicService::class.java).apply {
+                putExtra(MusicService.EXTRA_RESULT_CODE, result.resultCode)
+                putExtra(MusicService.EXTRA_RESULT_DATA, result.data)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        } else {
+            Toast.makeText(context, "MediaProjection consent denied. Music Mode cannot start.", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -236,6 +286,46 @@ fun HomeScreen(
                 )
             }
 
+            // --- Mode Selection Toggle ---
+            val isAnyServiceRunning = isRunning || isMusicRunning
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    .padding(4.dp)
+                    .testTag("mode_selector_row"),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                listOf("STANDARD", "MUSIC").forEach { mode ->
+                    val isSelected = selectedMode == mode
+                    val isLockedMode = isAnyServiceRunning && !isSelected
+                    val targetColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                    val textColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(targetColor)
+                            .clickable(enabled = !isAnyServiceRunning) {
+                                selectedMode = mode
+                            }
+                            .padding(vertical = 10.dp)
+                            .testTag("mode_toggle_$mode"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (mode == "STANDARD") "STANDARD MODE" else "MUSIC MODE",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor.copy(alpha = if (isLockedMode) 0.38f else 1.0f)
+                        )
+                    }
+                }
+            }
+
             // --- 2. Pass/Fail Readiness Indicators ---
             Card(
                 modifier = Modifier.fillMaxWidth().testTag("readiness_indicators_card"),
@@ -255,51 +345,100 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // Phone sensors (location) indicator
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Phone sensors / Microphone indicator
+                    if (selectedMode == "STANDARD") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text("Phone sensors (location)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = if (locationGranted) "Ready to measure speed" else "Access required for ride analytics",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.Gray
+                                    )
+                                }
+                            }
+
+                            // Status Badge
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                                contentAlignment = Alignment.Center
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (locationGranted) Color(0xFF1B5E20) else Color(0xFFC62828))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text("Phone sensors (location)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                                 Text(
-                                    text = if (locationGranted) "Ready to measure speed" else "Access required for ride analytics",
+                                    text = if (locationGranted) "PASS" else "FAIL",
+                                    color = Color.White,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color.Gray
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
-
-                        // Status Badge
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (locationGranted) Color(0xFF1B5E20) else Color(0xFFC62828))
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().testTag("mic_readiness_row"),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                text = if (locationGranted) "PASS" else "FAIL",
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Mic,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text("Microphone input", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = if (microphoneGranted) "Ready to capture internal audio" else "Access required for music reactions",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.Gray
+                                    )
+                                }
+                            }
+
+                            // Status Badge
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (microphoneGranted) Color(0xFF1B5E20) else Color(0xFFC62828))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = if (microphoneGranted) "PASS" else "FAIL",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
 
@@ -369,6 +508,9 @@ fun HomeScreen(
                 }
             }
 
+            val isModeStandard = selectedMode == "STANDARD"
+            val currentPermissionGranted = if (isModeStandard) locationGranted else microphoneGranted
+
             // --- 3. Contextual Action Area (Sections 4-5) ---
             Box(
                 modifier = Modifier
@@ -376,64 +518,114 @@ fun HomeScreen(
                     .testTag("contextual_actions_panel"),
                 contentAlignment = Alignment.Center
             ) {
-                if (!locationGranted) {
-                    // Location NOT GRANTED Case
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (permissionPermanentlyDenied) {
-                            // Blocked / Settings Redirect Case
-                            Card(
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
-                                ),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                                        Spacer(modifier = Modifier.width(8.dp))
+                if (!currentPermissionGranted) {
+                    if (isModeStandard) {
+                        // Location NOT GRANTED Case
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (permissionPermanentlyDenied) {
+                                // Blocked / Settings Redirect Case
+                                Card(
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "Permission Blocked",
+                                                fontWeight = FontWeight.Bold,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(6.dp))
                                         Text(
-                                            text = "Permission Blocked",
-                                            fontWeight = FontWeight.Bold,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.error
+                                            text = "Location is required and has been blocked. Enable it in Settings to ride.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontSize = 12.sp,
+                                            textAlign = TextAlign.Center,
+                                            color = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.testTag("blocked_message")
                                         )
                                     }
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        text = "Location is required and has been blocked. Enable it in Settings to ride.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontSize = 12.sp,
-                                        textAlign = TextAlign.Center,
-                                        color = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.testTag("blocked_message")
-                                    )
+                                }
+
+                                Button(
+                                    onClick = {
+                                        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                            data = Uri.fromParts("package", context.packageName, null)
+                                        }
+                                        context.startActivity(intent)
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                        .testTag("btn_open_settings"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                                ) {
+                                    Icon(Icons.Default.OpenInNew, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Open Settings", fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                // Rationale & standard Grant location flow
+                                Card(
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = "Pretty Nights uses your location to measure ride speed, which drives the light effects.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontSize = 12.sp,
+                                            textAlign = TextAlign.Center,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.testTag("rationale_text")
+                                        )
+                                    }
+                                }
+
+                                Button(
+                                    onClick = {
+                                        val req = mutableListOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                            req.add(Manifest.permission.POST_NOTIFICATIONS)
+                                        }
+                                        permissionLauncher.launch(req.toTypedArray())
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                        .testTag("btn_grant_location"),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Default.LockOpen, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Grant location", fontWeight = FontWeight.Bold)
                                 }
                             }
-
-                            Button(
-                                onClick = {
-                                    val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = Uri.fromParts("package", context.packageName, null)
-                                    }
-                                    context.startActivity(intent)
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp)
-                                    .testTag("btn_open_settings"),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                            ) {
-                                Icon(Icons.Default.OpenInNew, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Open Settings", fontWeight = FontWeight.Bold)
-                            }
-                        } else {
-                            // Rationale & standard Grant location flow
+                        }
+                    } else {
+                        // Microphone NOT GRANTED Case (Music Mode)
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             Card(
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
@@ -442,42 +634,35 @@ fun HomeScreen(
                             ) {
                                 Column(modifier = Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        text = "Pretty Nights uses your location to measure ride speed, which drives the light effects.",
+                                        text = "Pretty Nights needs record audio permission to capture internal audio, allowing your lights to pulse and react in real-time.",
                                         style = MaterialTheme.typography.bodySmall,
                                         fontSize = 12.sp,
                                         textAlign = TextAlign.Center,
                                         fontWeight = FontWeight.Medium,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.testTag("rationale_text")
+                                        modifier = Modifier.testTag("rationale_text_mic")
                                     )
                                 }
                             }
 
                             Button(
                                 onClick = {
-                                    val req = mutableListOf(
-                                        Manifest.permission.ACCESS_FINE_LOCATION,
-                                        Manifest.permission.ACCESS_COARSE_LOCATION
-                                    )
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                        req.add(Manifest.permission.POST_NOTIFICATIONS)
-                                    }
-                                    permissionLauncher.launch(req.toTypedArray())
+                                    micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp)
-                                    .testTag("btn_grant_location"),
+                                    .testTag("btn_grant_mic"),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Icon(Icons.Default.LockOpen, contentDescription = null)
+                                Icon(Icons.Default.Mic, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Grant location", fontWeight = FontWeight.Bold)
+                                Text("Grant microphone permission", fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 } else if (wledStatus != ScreenWledStatus.REACHABLE) {
-                    // Location IS GRANTED, but WLED unreachable
+                    // Permission IS GRANTED, but WLED unreachable
                     Button(
                         onClick = { checkWledReachability() },
                         enabled = wledStatus != ScreenWledStatus.CHECKING,
@@ -515,7 +700,7 @@ fun HomeScreen(
                             Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF2E7D32))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "Systems operating normally. Ready to ride!",
+                                text = if (isModeStandard) "Systems operating normally. Ready to ride!" else "Systems operating normally. Ready to stream!",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF2E7D32)
@@ -525,128 +710,227 @@ fun HomeScreen(
                 }
             }
 
-            // --- 4. Glowing Bike Art visual (Purely decorative, no live speed) ---
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(170.dp)
-                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color.Black),
-                contentAlignment = Alignment.Center
-            ) {
-                // Background grid pattern
+            val waveOffset by infiniteTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = 2f * Math.PI.toFloat(),
+                animationSpec = infiniteRepeatable(
+                    animation = tween(2000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "waveOffset"
+            )
+
+            if (selectedMode == "STANDARD") {
+                // --- 4. Glowing Bike Art visual (Purely decorative, no live speed) ---
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .drawBehind {
-                            val strokeColor = Color.DarkGray.copy(alpha = 0.15f)
-                            val step = 35.dp.toPx()
-                            var x = 0f
-                            while (x < size.width) {
-                                drawLine(strokeColor, start = androidx.compose.ui.geometry.Offset(x, 0f), end = androidx.compose.ui.geometry.Offset(x, size.height), strokeWidth = 1f)
-                                x += step
+                        .fillMaxWidth()
+                        .height(170.dp)
+                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.Black),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Background grid pattern
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .drawBehind {
+                                val strokeColor = Color.DarkGray.copy(alpha = 0.15f)
+                                val step = 35.dp.toPx()
+                                var x = 0f
+                                while (x < size.width) {
+                                    drawLine(strokeColor, start = androidx.compose.ui.geometry.Offset(x, 0f), end = androidx.compose.ui.geometry.Offset(x, size.height), strokeWidth = 1f)
+                                    x += step
+                                }
+                                var y = 0f
+                                while (y < size.height) {
+                                    drawLine(strokeColor, start = androidx.compose.ui.geometry.Offset(0f, y), end = androidx.compose.ui.geometry.Offset(size.width, y), strokeWidth = 1f)
+                                    y += step
+                                }
                             }
-                            var y = 0f
-                            while (y < size.height) {
-                                drawLine(strokeColor, start = androidx.compose.ui.geometry.Offset(0f, y), end = androidx.compose.ui.geometry.Offset(size.width, y), strokeWidth = 1f)
-                                y += step
-                            }
+                    )
+
+                    Canvas(modifier = Modifier.size(240.dp, 140.dp)) {
+                        // Draw decorative bike wheels and frame
+                        drawCircle(
+                            color = Color.DarkGray.copy(alpha = 0.35f),
+                            radius = 28.dp.toPx(),
+                            center = androidx.compose.ui.geometry.Offset(40.dp.toPx(), 95.dp.toPx()),
+                            style = Stroke(width = 3.dp.toPx())
+                        )
+                        drawCircle(
+                            color = Color.DarkGray.copy(alpha = 0.35f),
+                            radius = 28.dp.toPx(),
+                            center = androidx.compose.ui.geometry.Offset(200.dp.toPx(), 95.dp.toPx()),
+                            style = Stroke(width = 3.dp.toPx())
+                        )
+
+                        // Frame bars
+                        drawLine(Color.Gray.copy(alpha = 0.35f), start = androidx.compose.ui.geometry.Offset(40.dp.toPx(), 95.dp.toPx()), end = androidx.compose.ui.geometry.Offset(100.dp.toPx(), 95.dp.toPx()), strokeWidth = 2.5.dp.toPx())
+                        drawLine(Color.Gray.copy(alpha = 0.35f), start = androidx.compose.ui.geometry.Offset(100.dp.toPx(), 95.dp.toPx()), end = androidx.compose.ui.geometry.Offset(150.dp.toPx(), 40.dp.toPx()), strokeWidth = 2.5.dp.toPx())
+                        drawLine(Color.Gray.copy(alpha = 0.35f), start = androidx.compose.ui.geometry.Offset(150.dp.toPx(), 40.dp.toPx()), end = androidx.compose.ui.geometry.Offset(200.dp.toPx(), 95.dp.toPx()), strokeWidth = 2.5.dp.toPx())
+                        drawLine(Color.Gray.copy(alpha = 0.35f), start = androidx.compose.ui.geometry.Offset(40.dp.toPx(), 95.dp.toPx()), end = androidx.compose.ui.geometry.Offset(90.dp.toPx(), 50.dp.toPx()), strokeWidth = 2.5.dp.toPx())
+                        drawLine(Color.Gray.copy(alpha = 0.35f), start = androidx.compose.ui.geometry.Offset(90.dp.toPx(), 50.dp.toPx()), end = androidx.compose.ui.geometry.Offset(150.dp.toPx(), 40.dp.toPx()), strokeWidth = 2.5.dp.toPx())
+
+                        // Draw glowing neon light string if running
+                        val glowBrush = Brush.linearGradient(
+                            colors = listOf(uiColorPrimary, uiColorSecondary)
+                        )
+
+                        if (isRunning) {
+                            drawPath(
+                                path = androidx.compose.ui.graphics.Path().apply {
+                                    moveTo(48.dp.toPx(), 90.dp.toPx())
+                                    lineTo(90.dp.toPx(), 50.dp.toPx())
+                                    lineTo(142.dp.toPx(), 42.dp.toPx())
+                                    lineTo(192.dp.toPx(), 90.dp.toPx())
+                                },
+                                brush = glowBrush,
+                                style = Stroke(width = 9.dp.toPx() * pulseAlpha, cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                                alpha = 0.85f
+                            )
+
+                            drawPath(
+                                path = androidx.compose.ui.graphics.Path().apply {
+                                    moveTo(48.dp.toPx(), 90.dp.toPx())
+                                    lineTo(90.dp.toPx(), 50.dp.toPx())
+                                    lineTo(142.dp.toPx(), 42.dp.toPx())
+                                    lineTo(192.dp.toPx(), 90.dp.toPx())
+                                },
+                                color = Color.White,
+                                style = Stroke(width = 2.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                            )
                         }
-                )
-
-                Canvas(modifier = Modifier.size(240.dp, 140.dp)) {
-                    // Draw decorative bike wheels and frame
-                    drawCircle(
-                        color = Color.DarkGray.copy(alpha = 0.35f),
-                        radius = 28.dp.toPx(),
-                        center = androidx.compose.ui.geometry.Offset(40.dp.toPx(), 95.dp.toPx()),
-                        style = Stroke(width = 3.dp.toPx())
-                    )
-                    drawCircle(
-                        color = Color.DarkGray.copy(alpha = 0.35f),
-                        radius = 28.dp.toPx(),
-                        center = androidx.compose.ui.geometry.Offset(200.dp.toPx(), 95.dp.toPx()),
-                        style = Stroke(width = 3.dp.toPx())
-                    )
-
-                    // Frame bars
-                    drawLine(Color.Gray.copy(alpha = 0.35f), start = androidx.compose.ui.geometry.Offset(40.dp.toPx(), 95.dp.toPx()), end = androidx.compose.ui.geometry.Offset(100.dp.toPx(), 95.dp.toPx()), strokeWidth = 2.5.dp.toPx())
-                    drawLine(Color.Gray.copy(alpha = 0.35f), start = androidx.compose.ui.geometry.Offset(100.dp.toPx(), 95.dp.toPx()), end = androidx.compose.ui.geometry.Offset(150.dp.toPx(), 40.dp.toPx()), strokeWidth = 2.5.dp.toPx())
-                    drawLine(Color.Gray.copy(alpha = 0.35f), start = androidx.compose.ui.geometry.Offset(150.dp.toPx(), 40.dp.toPx()), end = androidx.compose.ui.geometry.Offset(200.dp.toPx(), 95.dp.toPx()), strokeWidth = 2.5.dp.toPx())
-                    drawLine(Color.Gray.copy(alpha = 0.35f), start = androidx.compose.ui.geometry.Offset(40.dp.toPx(), 95.dp.toPx()), end = androidx.compose.ui.geometry.Offset(90.dp.toPx(), 50.dp.toPx()), strokeWidth = 2.5.dp.toPx())
-                    drawLine(Color.Gray.copy(alpha = 0.35f), start = androidx.compose.ui.geometry.Offset(90.dp.toPx(), 50.dp.toPx()), end = androidx.compose.ui.geometry.Offset(150.dp.toPx(), 40.dp.toPx()), strokeWidth = 2.5.dp.toPx())
-
-                    // Draw glowing neon light string if running
-                    val glowBrush = Brush.linearGradient(
-                        colors = listOf(uiColorPrimary, uiColorSecondary)
-                    )
-
-                    if (isRunning) {
-                        drawPath(
-                            path = androidx.compose.ui.graphics.Path().apply {
-                                moveTo(48.dp.toPx(), 90.dp.toPx())
-                                lineTo(90.dp.toPx(), 50.dp.toPx())
-                                lineTo(142.dp.toPx(), 42.dp.toPx())
-                                lineTo(192.dp.toPx(), 90.dp.toPx())
-                            },
-                            brush = glowBrush,
-                            style = Stroke(width = 9.dp.toPx() * pulseAlpha, cap = androidx.compose.ui.graphics.StrokeCap.Round),
-                            alpha = 0.85f
-                        )
-
-                        drawPath(
-                            path = androidx.compose.ui.graphics.Path().apply {
-                                moveTo(48.dp.toPx(), 90.dp.toPx())
-                                lineTo(90.dp.toPx(), 50.dp.toPx())
-                                lineTo(142.dp.toPx(), 42.dp.toPx())
-                                lineTo(192.dp.toPx(), 90.dp.toPx())
-                            },
-                            color = Color.White,
-                            style = Stroke(width = 2.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                        )
                     }
-                }
 
-                // Central Status Text
-                Text(
-                    text = if (isRunning) activeState.name else "STANDBY",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.8.sp,
-                    color = if (isRunning) {
-                        when (activeState) {
-                            RideState.BRAKING, RideState.BRAKING_HOLD -> Color.Red
-                            RideState.CRUISING -> Color.Cyan
-                            RideState.IDLE -> Color(0xFFC084FC)
-                        }
-                    } else Color.LightGray,
-                    style = TextStyle(
-                        shadow = Shadow(
-                            color = uiColorPrimary.copy(alpha = 0.75f),
-                            blurRadius = 12f
-                        )
-                    ),
+                    // Central Status Text
+                    Text(
+                        text = if (isRunning) activeState.name else "STANDBY",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.8.sp,
+                        color = if (isRunning) {
+                            when (activeState) {
+                                RideState.BRAKING, RideState.BRAKING_HOLD -> Color.Red
+                                RideState.CRUISING -> Color.Cyan
+                                RideState.IDLE -> Color(0xFFC084FC)
+                            }
+                        } else Color.LightGray,
+                        style = TextStyle(
+                            shadow = Shadow(
+                                color = uiColorPrimary.copy(alpha = 0.75f),
+                                blurRadius = 12f
+                            )
+                        ),
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 12.dp)
+                    )
+                }
+            } else {
+                // Equalizer Visualizer!
+                Box(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 12.dp)
-                )
+                        .fillMaxWidth()
+                        .height(170.dp)
+                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.Black)
+                        .padding(16.dp),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    // Equalizer Bars
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        for (i in 0 until 16) {
+                            val amplitude = if (isMusicRunning) {
+                                musicBands.getOrElse(i) { 0f }
+                            } else {
+                                0.15f + 0.15f * kotlin.math.sin(waveOffset + i * 0.5f)
+                            }
+                            
+                            val animatedAmplitude by animateFloatAsState(
+                                targetValue = amplitude,
+                                animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                                label = "bar_$i"
+                            )
+                            
+                            val barColor = remember(i) {
+                                val ratio = i / 15f
+                                when {
+                                    ratio < 0.4f -> Color(0xFF00E5FF) // Cyan
+                                    ratio < 0.75f -> Color(0xFFD500F9) // Purple / Magenta
+                                    else -> Color(0xFFFF3D00) // Orange / Red
+                                }
+                            }
+                            
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(fraction = animatedAmplitude.coerceIn(0.02f, 1.0f))
+                                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                    .background(barColor)
+                                    .testTag("eq_bar_$i")
+                            )
+                        }
+                    }
+                    
+                    Text(
+                        text = if (isMusicRunning) "STREAMING" else "STANDBY",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.8.sp,
+                        color = if (isMusicRunning) Color(0xFFE040FB) else Color.Gray,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                    )
+                }
             }
 
             // --- 5. Main Start / Stop Button ---
-            val isReady = locationGranted && wledStatus == ScreenWledStatus.REACHABLE
-            val buttonEnabled = isRunning || (!isRunning && isReady)
+            val isReady = if (isModeStandard) {
+                locationGranted && wledStatus == ScreenWledStatus.REACHABLE
+            } else {
+                microphoneGranted && wledStatus == ScreenWledStatus.REACHABLE
+            }
+            val buttonEnabled = isRunning || isMusicRunning || isReady
 
             Button(
                 onClick = {
-                    val serviceIntent = Intent(context, RideService::class.java)
-                    if (isRunning) {
-                        context.stopService(serviceIntent)
-                    } else {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            context.startForegroundService(serviceIntent)
+                    if (isModeStandard) {
+                        if (isMusicRunning) {
+                            Toast.makeText(context, "Error: Music Mode is currently running. Stop it first.", Toast.LENGTH_LONG).show()
                         } else {
-                            context.startService(serviceIntent)
+                            val serviceIntent = Intent(context, RideService::class.java)
+                            if (isRunning) {
+                                context.stopService(serviceIntent)
+                            } else {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    context.startForegroundService(serviceIntent)
+                                } else {
+                                    context.startService(serviceIntent)
+                                }
+                            }
+                        }
+                    } else {
+                        if (isRunning) {
+                            Toast.makeText(context, "Error: Ride tracking is currently running. Stop it first.", Toast.LENGTH_LONG).show()
+                        } else {
+                            if (isMusicRunning) {
+                                val serviceIntent = Intent(context, MusicService::class.java).apply {
+                                    action = MusicService.ACTION_STOP_MUSIC
+                                }
+                                context.startService(serviceIntent)
+                            } else {
+                                val mediaProjectionManager = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+                                mediaProjectionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
+                            }
                         }
                     }
                 },
@@ -657,7 +941,7 @@ fun HomeScreen(
                     .testTag("btn_ride_toggle"),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isRunning) Color(0xFFC62828) else MaterialTheme.colorScheme.primary,
+                    containerColor = if (isRunning || isMusicRunning) Color(0xFFC62828) else MaterialTheme.colorScheme.primary,
                     disabledContainerColor = Color.Gray.copy(alpha = 0.25f)
                 )
             ) {
@@ -666,13 +950,17 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Icon(
-                        imageVector = if (isRunning) Icons.Default.Stop else Icons.Default.PlayArrow,
+                        imageVector = if (isRunning || isMusicRunning) Icons.Default.Stop else Icons.Default.PlayArrow,
                         contentDescription = null,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isRunning) "STOP RIDE" else "START RIDE",
+                        text = if (isRunning || isMusicRunning) {
+                            if (isRunning) "STOP RIDE" else "STOP MUSIC"
+                        } else {
+                            if (isModeStandard) "START RIDE" else "START MUSIC"
+                        },
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )

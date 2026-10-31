@@ -12,6 +12,8 @@
     <!-- Foreground Service Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     
     <!-- Android 13+ Notification Post Access -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -43,6 +45,12 @@
         <service
             android:name=".ride.RideService"
             android:foregroundServiceType="location"
+            android:enabled="true"
+            android:exported="false" />
+
+        <service
+            android:name=".ride.MusicService"
+            android:foregroundServiceType="microphone"
             android:enabled="true"
             android:exported="false" />
             

@@ -89,7 +89,7 @@ class WledController {
                 presetsList.sortedBy { it.id }
             }
         } catch (e: Exception) {
-            Log.e("WledController", "Error fetching presets: ${e.message}")
+            Log.d("WledController", "WLED unreachable while fetching presets ($host): ${e.message}")
             null
         }
     }
@@ -112,7 +112,7 @@ class WledController {
                 list
             }
         } catch (e: Exception) {
-            Log.e("WledController", "Error fetching effects: ${e.message}")
+            Log.d("WledController", "WLED unreachable while fetching effects ($host): ${e.message}")
             null
         }
     }
@@ -135,7 +135,7 @@ class WledController {
                 list
             }
         } catch (e: Exception) {
-            Log.e("WledController", "Error fetching palettes: ${e.message}")
+            Log.d("WledController", "WLED unreachable while fetching palettes ($host): ${e.message}")
             null
         }
     }
@@ -180,12 +180,12 @@ class WledController {
         return try {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    Log.e("WledController", "Failed to send request: Code ${response.code}")
+                    Log.d("WledController", "WLED returned non-200 response: Code ${response.code}")
                 }
                 response.isSuccessful
             }
         } catch (e: Exception) {
-            Log.e("WledController", "Exception while sending state to WLED at $host: ${e.message}")
+            Log.d("WledController", "WLED unreachable while sending state to $host: ${e.message}")
             false
         }
     }

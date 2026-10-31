@@ -1,5 +1,6 @@
 package com.example.tuning
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -32,6 +33,7 @@ import com.example.statemachine.RideState
 import com.example.statemachine.StateMachineConfig
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, kotlinx.coroutines.FlowPreview::class)
 @Composable
@@ -40,9 +42,61 @@ fun TuningScreen(
     onConfigSave: (AppConfig) -> Unit,
     onBack: () -> Unit
 ) {
+    BackHandler(onBack = onBack)
     val coroutineScope = rememberCoroutineScope()
     val isLocked by PrettyNightsApp.instance.lockController.isLocked.collectAsStateWithLifecycle()
     val isRideRunning by RideService.isServiceRunning.collectAsStateWithLifecycle()
+
+    var overrideState by remember { mutableStateOf<RideState?>(null) }
+    var overrideBrightness by remember { mutableStateOf(1.0f) }
+    var wledUnreachableError by remember { mutableStateOf(false) }
+
+    val sendChannel = remember {
+        kotlinx.coroutines.channels.Channel<Pair<RideState, Float>>(
+            kotlinx.coroutines.channels.Channel.CONFLATED
+        )
+    }
+
+    LaunchedEffect(isRideRunning) {
+        if (isRideRunning) {
+            overrideState = null
+        }
+    }
+
+    val currentConfig by rememberUpdatedState(config)
+
+    LaunchedEffect(Unit) {
+        var lastSentTime = 0L
+        for (event in sendChannel) {
+            val (state, brightness) = event
+            val now = android.os.SystemClock.elapsedRealtime()
+            val timeSinceLast = now - lastSentTime
+            if (timeSinceLast < 100) {
+                kotlinx.coroutines.delay(100 - timeSinceLast)
+            }
+            val currentLook = when (state) {
+                RideState.IDLE -> currentConfig.idleLook
+                RideState.CRUISING -> currentConfig.cruisingLook
+                RideState.BRAKING -> currentConfig.brakingLook
+                else -> null
+            }
+            if (currentLook != null) {
+                try {
+                    val success = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        PrettyNightsApp.instance.wledController.sendState(
+                            currentConfig.wledHost,
+                            currentLook,
+                            brightness
+                        )
+                    }
+                    wledUnreachableError = !success
+                } catch (e: Exception) {
+                    wledUnreachableError = true
+                }
+                lastSentTime = android.os.SystemClock.elapsedRealtime()
+            }
+        }
+    }
 
     // Visual throttled telemetry flow (~6.7 Hz / 150ms sample)
     val telemetry by remember {
@@ -179,6 +233,181 @@ fun TuningScreen(
                             TelemetryRow(label = "Decel active", value = "—")
                             TelemetryRow(label = "In entry fade", value = "—")
                             TelemetryRow(label = "Hold/fade phase", value = "—")
+                        }
+                    }
+                }
+
+                // --- MANUAL OVERRIDE (SECTION 2) ---
+                TuningSectionHeader(title = "Manual Override")
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("manual_override_panel"),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        if (isRideRunning) {
+                            Text(
+                                text = "Available when no ride is active.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                                    .testTag("override_disabled_note")
+                            )
+                        }
+
+                        // Status Line
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            if (overrideState != null) {
+                                Card(
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
+                                    ),
+                                    border = CardDefaults.outlinedCardBorder().copy(
+                                        width = 1.dp,
+                                        brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.error)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Warning,
+                                            contentDescription = "Warning",
+                                            tint = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                        Text(
+                                            text = "Override active: ${overrideState?.name} — lights are not reflecting a real ride.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onErrorContainer,
+                                            modifier = Modifier.testTag("override_status_text")
+                                        )
+                                    }
+                                }
+                            } else {
+                                Text(
+                                    text = "No override active.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.Gray,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.testTag("override_status_text")
+                                )
+                            }
+                        }
+
+                        // Connection Error notification
+                        if (wledUnreachableError && overrideState != null) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Error,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "WLED controller unreachable. Try again.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        // Action Buttons: IDLE, CRUISING, BRAKING
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val buttonStates = listOf(
+                                Triple(RideState.IDLE, "IDLE", "override_idle_button"),
+                                Triple(RideState.CRUISING, "CRUISING", "override_cruising_button"),
+                                Triple(RideState.BRAKING, "BRAKING", "override_braking_button")
+                            )
+
+                            buttonStates.forEach { (stateType, label, tag) ->
+                                val isSelected = overrideState == stateType
+                                Button(
+                                    onClick = {
+                                        if (overrideState == stateType) {
+                                            overrideState = null
+                                        } else {
+                                            overrideState = stateType
+                                            sendChannel.trySend(stateType to overrideBrightness)
+                                        }
+                                    },
+                                    enabled = !isRideRunning,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                        contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    ),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag(tag)
+                                ) {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        // Brightness slider
+                        Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Brightness",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = String.format("%.2f", overrideBrightness),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Slider(
+                                value = overrideBrightness,
+                                onValueChange = { newVal ->
+                                    val stepped = (newVal * 100).roundToInt() / 100f
+                                    overrideBrightness = stepped
+                                    overrideState?.let { state ->
+                                        sendChannel.trySend(state to stepped)
+                                    }
+                                },
+                                valueRange = 0.0f..1.0f,
+                                enabled = !isRideRunning,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("override_brightness_slider")
+                            )
                         }
                     }
                 }

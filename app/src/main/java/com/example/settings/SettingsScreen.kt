@@ -38,6 +38,7 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     
     var wledHostInput by remember(config.wledHost) { mutableStateOf(config.wledHost) }
+    var audioSyncPortInput by remember(config.audioSyncPort) { mutableStateOf(config.audioSyncPort.toString()) }
     var testResult by remember { mutableStateOf<String?>(null) }
 
     fun cleanHost(input: String): Pair<String, String?> {
@@ -93,8 +94,12 @@ fun SettingsScreen(
         onDispose {
             if (!isLocked) {
                 val (cleaned, _) = cleanHost(wledHostInput)
+                val portParsed = audioSyncPortInput.toIntOrNull()
+                val validPort = if (portParsed != null && portParsed in 1..65535) portParsed else config.audioSyncPort
                 if (cleaned.isNotEmpty()) {
-                    onConfigSave(config.copy(wledHost = cleaned))
+                    onConfigSave(config.copy(wledHost = cleaned, audioSyncPort = validPort))
+                } else {
+                    onConfigSave(config.copy(audioSyncPort = validPort))
                 }
             }
         }
@@ -280,6 +285,36 @@ fun SettingsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("wled_host_input"),
+                        singleLine = true
+                    )
+                    
+                    val isPortValid = audioSyncPortInput.toIntOrNull()?.let { it in 1..65535 } ?: false
+                    
+                    OutlinedTextField(
+                        value = audioSyncPortInput,
+                        onValueChange = {
+                            if (!isLocked) {
+                                audioSyncPortInput = it
+                                val parsed = it.toIntOrNull()
+                                if (parsed != null && parsed in 1..65535) {
+                                    onConfigSave(config.copy(audioSyncPort = parsed))
+                                }
+                            }
+                        },
+                        enabled = !isLocked,
+                        label = { Text("WLED AudioReactive UDP Sync Port") },
+                        leadingIcon = { Icon(Icons.Default.Share, null) },
+                        placeholder = { Text("11988") },
+                        supportingText = {
+                            Text(
+                                text = if (!isPortValid) "Port must be an integer between 1 and 65535" else "Must match the UDP port in WLED's AudioReactive settings (default 11988).",
+                                color = if (!isPortValid) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                fontSize = 11.sp
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("audio_sync_port_input"),
                         singleLine = true
                     )
                     

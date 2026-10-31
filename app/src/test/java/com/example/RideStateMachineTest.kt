@@ -117,8 +117,146 @@ class RideStateMachineTest {
          // Total hold + fade duration is 3.0s (3000ms). Entered hold at 500L, so 3500L should transition to IDLE.
          sm.tick(RideSample(3400L, 0f, 0.5f))
          assertEquals(RideState.BRAKING_HOLD, sm.getCurrentState()) // 2900ms elapsed since entering hold
+         assertEquals("fade", sm.latestTelemetry.holdFadePhase)
 
          sm.tick(RideSample(3600L, 0f, 0.5f))
          assertEquals(RideState.IDLE, sm.getCurrentState()) // 3100ms elapsed since entering hold (IDLE)
+         assertEquals("n/a", sm.latestTelemetry.holdFadePhase)
+    }
+
+    @Test
+    fun testBrakingGammaBrightnessAndGlobalCeilingBypass() {
+        val config = StateMachineConfig(
+            globalMinBrightness = 0.2f,
+            globalMaxBrightness = 0.8f,
+            brakingIgnoresGlobalMax = true,
+            brakingMinBrightness = 0.6f,
+            brakingMaxBrightness = 1.0f,
+            brakingGamma = 1.6f
+        )
+        val sm = RideStateMachine { config }
+        sm.getAndResetState(0L)
+
+        // Enter CRUISING at 20 km/h
+        sm.tick(RideSample(100L, 0f, 20.0f))
+        assertEquals(RideState.CRUISING, sm.getCurrentState())
+
+        // Assert BRAKING at 20 km/h -> entrySpeedKmh captured as 20.0f
+        sm.tick(RideSample(200L, -2.5f, 20.0f))
+        val onsetOut = sm.tick(RideSample(400L, -2.5f, 20.0f))
+        assertEquals(RideState.BRAKING, onsetOut.state)
+        assertEquals(20.0f, sm.latestTelemetry.entrySpeedKmh ?: 0f, 0.01f)
+
+        // Slow down to 2.5 km/h while still braking -> brightness should exceed 0.80 globalMaxBrightness
+        val hardBrakeOut = sm.tick(RideSample(600L, -2.5f, 2.5f))
+        assertEquals(RideState.BRAKING, hardBrakeOut.state)
+        assertTrue(
+            "Expected braking brightness (${hardBrakeOut.brightness}) to bypass globalMaxBrightness (0.8)",
+            hardBrakeOut.brightness > 0.85f
+        )
+    }
+
+    @Test
+    fun testBoschCorroborationDefersIdleUntilStopped() {
+        val config = StateMachineConfig(
+            useBoschCorroboration = true,
+            requireBoschIdleConfirm = true
+        )
+        val sm = RideStateMachine { config }
+        sm.getAndResetState(0L)
+
+        // Enter CRUISING
+        sm.tick(RideSample(100L, 0f, 10.0f))
+        assertEquals(RideState.CRUISING, sm.getCurrentState())
+
+        // Speed drops below 2.0 km/h, but Bosch says bikeNotDriving = false -> remain CRUISING
+        sm.tick(RideSample(200L, 0f, 1.0f, bikeNotDriving = false))
+        assertEquals(RideState.CRUISING, sm.getCurrentState())
+
+        // Once Bosch confirms bikeNotDriving = true -> transition to IDLE
+        sm.tick(RideSample(300L, 0f, 1.0f, bikeNotDriving = true))
+        assertEquals(RideState.IDLE, sm.getCurrentState())
+    }
+
+    @Test
+    fun testLockControllerSafetyStates() {
+        val lockController = com.example.safety.LockController()
+        assertFalse(lockController.isLocked.value)
+
+        // Service running in IDLE -> unlocked
+        lockController.updateState(RideState.IDLE, isServiceRunning = true)
+        assertFalse(lockController.isLocked.value)
+
+        // Service running in CRUISING / BRAKING / BRAKING_HOLD -> locked
+        lockController.updateState(RideState.CRUISING, isServiceRunning = true)
+        assertTrue(lockController.isLocked.value)
+
+        lockController.updateState(RideState.BRAKING, isServiceRunning = true)
+        assertTrue(lockController.isLocked.value)
+
+        // Force unlock on stop -> unlocked
+        lockController.forceUnlock()
+        assertFalse(lockController.isLocked.value)
+    }
+
+    @Test
+    fun testMusicServiceFftAndWledV2PacketSchema() {
+        val fftSize = 1024
+        val sampleRate = 44100.0
+        val targetFreq = 1000.0
+        val real = DoubleArray(fftSize)
+        val imag = DoubleArray(fftSize)
+
+        for (i in 0 until fftSize) {
+            val sample = kotlin.math.sin(2.0 * kotlin.math.PI * targetFreq * i / sampleRate)
+            val hann = 0.5 * (1.0 - kotlin.math.cos(2.0 * kotlin.math.PI * i / (fftSize - 1)))
+            real[i] = sample * hann
+            imag[i] = 0.0
+        }
+
+        com.example.ride.MusicService.fftInPlace(real, imag)
+
+        var maxMag = -1.0
+        var maxBin = -1
+        for (i in 1 until fftSize / 2) {
+            val mag = kotlin.math.sqrt(real[i] * real[i] + imag[i] * imag[i])
+            if (mag > maxMag) {
+                maxMag = mag
+                maxBin = i
+            }
+        }
+        val detectedFreq = maxBin * (sampleRate / fftSize)
+        // Bin resolution is 44100 / 1024 = 43.066 Hz; 1000 Hz should land within 1 bin (~43 Hz)
+        assertEquals(targetFreq, detectedFreq, 45.0)
+
+        val myVals = ByteArray(32) { 128.toByte() }
+        val fftResult = ByteArray(16) { (it * 10).toByte() }
+        val packet = com.example.ride.MusicService.packV2Packet(
+            myVals = myVals,
+            sampleAgc = 200,
+            sampleRaw = 180,
+            sampleAvg = 150.5f,
+            samplePeak = 1,
+            fftResult = fftResult,
+            fftMagnitude = maxMag,
+            fftMajorPeak = detectedFreq
+        )
+
+        // Verify 84-byte Little-Endian WLED V2 Packet structure
+        assertEquals(84, packet.size)
+        assertEquals('0'.code.toByte(), packet[0])
+        assertEquals('0'.code.toByte(), packet[1])
+        assertEquals('0'.code.toByte(), packet[2])
+        assertEquals('0'.code.toByte(), packet[3])
+        assertEquals('2'.code.toByte(), packet[4])
+        assertEquals(0.toByte(), packet[5])
+
+        val buffer = java.nio.ByteBuffer.wrap(packet).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        assertEquals(200, buffer.getInt(38))
+        assertEquals(180, buffer.getInt(42))
+        assertEquals(150.5f, buffer.getFloat(46), 0.01f)
+        assertEquals(1.toByte(), buffer.get(50))
+        assertEquals(0.toByte(), buffer.get(51))
+        assertEquals(detectedFreq, buffer.getDouble(76), 0.01)
     }
 }

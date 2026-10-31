@@ -3,6 +3,7 @@ package com.example
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
@@ -56,6 +57,10 @@ class MainActivity : ComponentActivity() {
                 // 2. State-based Navigation (0: Home/Dashboard, 1: Patterns, 2: History, 3: Settings)
                 var currentTab by remember { mutableStateOf(0) }
                 var showTuningScreen by remember { mutableStateOf(false) }
+
+                BackHandler(enabled = !showTuningScreen && currentTab != 0) {
+                    currentTab = 0
+                }
 
                 if (showTuningScreen) {
                     com.example.tuning.TuningScreen(
