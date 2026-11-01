@@ -46,6 +46,9 @@ class PrettyNightsApp : Application() {
         configManager = ConfigManager(this)
         lockController = LockController()
 
+        // 4. WLED Connection (with USB-C Ethernet & Wi-Fi local interface binding)
+        wledController = WledController(this)
+
         // Prefetch configuration snapshot for cache or update when safe
         CoroutineScope(Dispatchers.IO).launch {
             configManager.configFlow.collect { config ->
@@ -55,6 +58,10 @@ class PrettyNightsApp : Application() {
                 if (!isRunning) {
                      cachedSpeedSource = config.speedSource
                 }
+                wledController.updateTransportConfig(
+                    lockToLocalNetwork = config.lockToLocalNetwork,
+                    usbSerialFallbackEnabled = config.usbSerialFallbackEnabled
+                )
             }
         }
 
@@ -64,9 +71,6 @@ class PrettyNightsApp : Application() {
         fusedSpeedProvider = FusedSpeedProvider(gpsSpeedProvider, boschSpeedProvider) {
             cachedSpeedSource
         }
-
-        // 4. WLED Connection
-        wledController = WledController()
 
         // 5. Build Orchestrator
         orchestrator = RideOrchestrator(

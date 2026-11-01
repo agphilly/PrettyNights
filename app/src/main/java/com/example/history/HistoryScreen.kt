@@ -384,17 +384,15 @@ fun SessionCard(
                             Button(
                                 onClick = {
                                     val report = boschReport ?: SessionExportHelper.computeBoschReport(imuSamples, boschSamples)
-                                    coroutineScope.launch {
-                                        val csv = withContext(Dispatchers.Default) {
-                                            SessionExportHelper.buildSessionCsv(
-                                                session = session,
-                                                imuSamples = imuSamples,
-                                                boschSamples = boschSamples,
-                                                markers = rideMarkers,
-                                                report = report
-                                            )
-                                        }
-                                        SessionExportHelper.shareSessionCsv(context, session.id, csv)
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        SessionExportHelper.exportAndShareSessionCsv(
+                                            context = context,
+                                            session = session,
+                                            imuSamples = imuSamples,
+                                            boschSamples = boschSamples,
+                                            markers = rideMarkers,
+                                            report = report
+                                        )
                                     }
                                 },
                                 modifier = Modifier.weight(1f).testTag("btn_export_csv_${session.id}")

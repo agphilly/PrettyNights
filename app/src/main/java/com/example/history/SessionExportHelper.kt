@@ -151,38 +151,53 @@ object SessionExportHelper {
         markers: List<RideMarkerEntity>,
         report: BoschSessionReliabilityReport
     ): String {
-        val sb = StringBuilder()
+        val sw = java.io.StringWriter()
+        writeSessionCsvToAppendable(sw, session, imuSamples, boschSamples, markers, report)
+        return sw.toString()
+    }
 
+    /**
+     * Streams the 4-section CSV directly into any Appendable (such as a BufferedWriter on disk)
+     * so multi-hour 50 Hz rides never allocate a huge single String in heap memory.
+     */
+    fun writeSessionCsvToAppendable(
+        out: Appendable,
+        session: SessionEntity,
+        imuSamples: List<ImuSampleEntity>,
+        boschSamples: List<BoschSampleEntity>,
+        markers: List<RideMarkerEntity>,
+        report: BoschSessionReliabilityReport
+    ) {
         // Section 1: Session Metadata & Bosch V1.0 Summary
-        sb.appendLine("# PRETTY NIGHTS TELEMETRY & BOSCH LIVE DATA V1.0 EXPORT")
-        sb.appendLine("# session_id,${session.id}")
-        sb.appendLine("# title,\"${session.title.replace("\"", "\"\"")}\"")
-        sb.appendLine("# notes,\"${session.notes.replace("\"", "\"\"")}\"")
-        sb.appendLine("# mode,${if (session.logOnlyMode) "LOG_ONLY_NO_WLED" else "WLED_ACTIVE"}")
-        sb.appendLine("# configured_speed_source,${session.configuredSpeedSource}")
-        sb.appendLine("# start_wall_ms,${session.startTimeMillis}")
-        sb.appendLine("# start_monotonic_ms,${session.startMonotonicMs}")
-        sb.appendLine("# end_monotonic_ms,${session.endTimeMonotonicMs ?: ""}")
-        sb.appendLine("# bosch_eb21_notifications,${report.totalNotifications}")
-        sb.appendLine("# bosch_decode_success_pct,${String.format(Locale.US, "%.2f", report.decodeSuccessRatePercent)}")
-        sb.appendLine("# bosch_min_mtu,${report.minNegotiatedMtu}")
-        sb.appendLine("# bosch_freshness_uptime_pct,${String.format(Locale.US, "%.2f", report.boschFreshnessUptimePercent)}")
-        sb.appendLine("# bosch_stale_fallback_events,${report.staleFallbackEvents}")
-        sb.appendLine("# bosch_mean_speed_delta_kmh,${String.format(Locale.US, "%.2f", report.meanSpeedDeltaKmh)}")
-        sb.appendLine()
+        out.appendLine("# PRETTY NIGHTS TELEMETRY & BOSCH LIVE DATA V1.0 EXPORT")
+        out.appendLine("# session_id,${session.id}")
+        out.appendLine("# title,\"${session.title.replace("\"", "\"\"")}\"")
+        out.appendLine("# notes,\"${session.notes.replace("\"", "\"\"")}\"")
+        out.appendLine("# mode,${if (session.logOnlyMode) "LOG_ONLY_NO_WLED" else "WLED_ACTIVE"}")
+        out.appendLine("# configured_speed_source,${session.configuredSpeedSource}")
+        out.appendLine("# start_wall_ms,${session.startTimeMillis}")
+        out.appendLine("# start_monotonic_ms,${session.startMonotonicMs}")
+        out.appendLine("# end_monotonic_ms,${session.endTimeMonotonicMs ?: ""}")
+        out.appendLine("# bosch_eb21_notifications,${report.totalNotifications}")
+        out.appendLine("# bosch_decode_success_pct,${String.format(Locale.US, "%.2f", report.decodeSuccessRatePercent)}")
+        out.appendLine("# bosch_min_mtu,${report.minNegotiatedMtu}")
+        out.appendLine("# bosch_freshness_uptime_pct,${String.format(Locale.US, "%.2f", report.boschFreshnessUptimePercent)}")
+        out.appendLine("# bosch_stale_fallback_events,${report.staleFallbackEvents}")
+        out.appendLine("# bosch_mean_speed_delta_kmh,${String.format(Locale.US, "%.2f", report.meanSpeedDeltaKmh)}")
+        out.appendLine()
 
         // Section 2: In-Ride Event Markers
-        sb.appendLine("# IN_RIDE_EVENT_MARKERS")
-        sb.appendLine("marker_id,timestamp_monotonic_ms,elapsed_ms,marker_type,note")
+        out.appendLine("# IN_RIDE_EVENT_MARKERS")
+        out.appendLine("marker_id,timestamp_monotonic_ms,elapsed_ms,marker_type,note")
         for (m in markers) {
             val elapsed = m.timestampMonotonicMs - session.startMonotonicMs
-            sb.appendLine("${m.id},${m.timestampMonotonicMs},$elapsed,${m.markerType},\"${m.note.replace("\"", "\"\"")}\"")
+            out.appendLine("${m.id},${m.timestampMonotonicMs},$elapsed,${m.markerType},\"${m.note.replace("\"", "\"\"")}\"")
         }
-        sb.appendLine()
+        out.appendLine()
 
         // Section 3: Bosch Live Data Interface V1.0 (eb21) Notifications
-        sb.appendLine("# BOSCH_LIVE_DATA_V1_NOTIFICATIONS (0000eb21-eaa2-11e9-81b4-2a2ae2dbcce4)")
-        sb.appendLine(
+        out.appendLine("# BOSCH_LIVE_DATA_V1_NOTIFICATIONS (0000eb21-eaa2-11e9-81b4-2a2ae2dbcce4)")
+        out.appendLine(
             "packet_id,timestamp_monotonic_ms,elapsed_ms,negotiated_mtu,payload_bytes,decode_success,present_fields_mask," +
                 "speed_raw_100th_kmh,speed_kmh,cadence_rpm,rider_power_w,ambient_millilux,ambient_lux," +
                 "battery_soc_pct,ebike_time_utc_s,odometer_m,bike_light_code,system_locked,charger_connected," +
@@ -190,7 +205,7 @@ object SessionExportHelper {
         )
         for (b in boschSamples) {
             val elapsed = b.timestampMonotonicMs - session.startMonotonicMs
-            sb.appendLine(
+            out.appendLine(
                 "${b.id},${b.timestampMonotonicMs},$elapsed,${b.negotiatedMtu},${b.payloadSizeBytes},${b.decodeSuccess},${b.presentFieldsMask}," +
                     "${b.speedHundredthsKmh ?: ""},${b.speedKmh?.let { String.format(Locale.US, "%.2f", it) } ?: ""}," +
                     "${b.cadenceRpm ?: ""},${b.riderPowerWatts ?: ""},${b.ambientMilliLux ?: ""},${b.ambientLux?.let { String.format(Locale.US, "%.3f", it) } ?: ""}," +
@@ -199,11 +214,11 @@ object SessionExportHelper {
                     String.format(Locale.US, "%.2f", b.gpsSpeedKmhAtCapture)
             )
         }
-        sb.appendLine()
+        out.appendLine()
 
         // Section 4: 50 Hz Unified IMU + GPS + Bosch + State Machine Telemetry
-        sb.appendLine("# UNIFIED_50HZ_RIDE_TELEMETRY")
-        sb.appendLine(
+        out.appendLine("# UNIFIED_50HZ_RIDE_TELEMETRY")
+        out.appendLine(
             "sample_id,timestamp_monotonic_ms,elapsed_ms,state_name,active_speed_source,speed_kmh,gps_speed_kmh," +
                 "bosch_speed_kmh,bosch_age_ms,bosch_bike_not_driving,bosch_cadence_rpm,bosch_rider_power_w," +
                 "bosch_ambient_lux,bosch_battery_soc,bosch_bike_light,fused_accel_ms2,accel_x,accel_y,accel_z,axis,sign,marker_at_tick"
@@ -211,7 +226,7 @@ object SessionExportHelper {
         for (s in imuSamples) {
             val elapsed = s.timestampMonotonicMs - session.startMonotonicMs
             val nearMarker = markers.firstOrNull { kotlin.math.abs(it.timestampMonotonicMs - s.timestampMonotonicMs) <= 25L }?.markerType ?: ""
-            sb.appendLine(
+            out.appendLine(
                 "${s.id},${s.timestampMonotonicMs},$elapsed,${s.stateName},${s.activeSpeedSource}," +
                     "${String.format(Locale.US, "%.2f", s.speedKmh)},${String.format(Locale.US, "%.2f", s.gpsSpeedKmh)}," +
                     "${s.boschSpeedKmh?.let { String.format(Locale.US, "%.2f", it) } ?: ""},${s.boschAgeMs}," +
@@ -222,15 +237,57 @@ object SessionExportHelper {
                     "${s.calibratedAxis},${s.calibratedSign},$nearMarker"
             )
         }
+    }
 
-        return sb.toString()
+    /**
+     * Streams the session CSV directly to `cacheDir/exports/prettynights_session_<id>.csv` and shares it
+     * via `FileProvider` (`Intent.EXTRA_STREAM`) to avoid Android's 1 MB Binder `TransactionTooLargeException`.
+     */
+    fun exportAndShareSessionCsv(
+        context: Context,
+        session: SessionEntity,
+        imuSamples: List<ImuSampleEntity>,
+        boschSamples: List<BoschSampleEntity>,
+        markers: List<RideMarkerEntity>,
+        report: BoschSessionReliabilityReport
+    ): java.io.File {
+        val exportDir = java.io.File(context.cacheDir, "exports").apply { mkdirs() }
+        val csvFile = java.io.File(exportDir, "prettynights_session_${session.id}.csv")
+        csvFile.bufferedWriter(Charsets.UTF_8).use { writer ->
+            writeSessionCsvToAppendable(writer, session, imuSamples, boschSamples, markers, report)
+        }
+        shareCsvFile(context, session.id, csvFile)
+        return csvFile
     }
 
     fun shareSessionCsv(context: Context, sessionId: Long, csvContent: String) {
-        val sendIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/csv"
-            putExtra(Intent.EXTRA_SUBJECT, "Pretty Nights Ride Session #$sessionId Telemetry & Bosch V1.0 CSV")
-            putExtra(Intent.EXTRA_TEXT, csvContent)
+        val exportDir = java.io.File(context.cacheDir, "exports").apply { mkdirs() }
+        val csvFile = java.io.File(exportDir, "prettynights_session_${sessionId}.csv")
+        csvFile.writeText(csvContent, Charsets.UTF_8)
+        shareCsvFile(context, sessionId, csvFile)
+    }
+
+    private fun shareCsvFile(context: Context, sessionId: Long, csvFile: java.io.File) {
+        val sendIntent = try {
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                csvFile
+            )
+            Intent(Intent.ACTION_SEND).apply {
+                type = "text/csv"
+                putExtra(Intent.EXTRA_SUBJECT, "Pretty Nights Ride Session #$sessionId Telemetry & Bosch V1.0 CSV")
+                putExtra(Intent.EXTRA_STREAM, uri)
+                clipData = android.content.ClipData.newRawUri("prettynights_session_${sessionId}.csv", uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        } catch (e: Exception) {
+            // Safe fallback for unit test environments where FileProvider may not be registered
+            Intent(Intent.ACTION_SEND).apply {
+                type = "text/csv"
+                putExtra(Intent.EXTRA_SUBJECT, "Pretty Nights Ride Session #$sessionId Telemetry & Bosch V1.0 CSV")
+                putExtra(Intent.EXTRA_TEXT, csvFile.readText(Charsets.UTF_8).take(250_000))
+            }
         }
         val chooser = Intent.createChooser(sendIntent, "Export Ride Session #$sessionId CSV")
         chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

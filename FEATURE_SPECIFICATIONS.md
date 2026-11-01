@@ -151,15 +151,17 @@ Multicast at `50 Hz` (`20ms` interval) to `239.0.0.1:<audioSyncPort>` (default p
 
 ---
 
-### Feature 6: Sensor Calibration, Settings & Developer Tuning (`SettingsScreen`, `TuningScreen`, `TuningReplayCard`)
+### Feature 6: Sensor Calibration, Settings, Developer Tuning & Web Workbench (`SettingsScreen`, `TuningScreen`, `TuningReplayCard`, `TuningConfigSyncCard`, `/tools/telemetry-workbench/`)
 
 #### 6.1 Functional Requirements
 - **FR-SET-01 (Host & Port Sanitization):** Automatically strips `http://`, `https://`, paths, queries, and ports from `wledHost` with inline user feedback; validates `audioSyncPort` in `1..65535`.
 - **FR-SET-02 (Speed Source Selection):** Configures `GPS_ONLY`, `BOSCH_PREFERRED`, or `BOSCH_ONLY` for live state-machine control while keeping parallel GPS + Bosch recording always active.
 - **FR-SET-03 (Mount Axis & Polarity Calibration):** Configures handlebar forward axis (`X`, `Y`, `Z`) and deceleration sign (`-1` or `+1`), plus guided 1-tap calibration capture.
+- **FR-SET-04 (Dual-Mode Local Network Binding & USB Serial Fallback):** `WledNetworkTransport` monitors `ConnectivityManager` to automatically prioritize wired USB-C Ethernet (`TRANSPORT_ETHERNET`) or bind HTTP/UDP sockets directly to Wi-Fi (`TRANSPORT_WIFI`) so Android never routes local WLED traffic over 5G/LTE cellular when `WLED-AP` has no internet access, with optional `115200` baud USB-C Serial JSON mirroring.
 - **FR-TUN-01 (Live Telemetry & Manual Override):** `TuningScreen` (accessed from Settings) displays a 6.7 Hz (`150ms` sampled) state machine + Bosch `eb21` telemetry panel and a stationary Manual Override bar (`IDLE`, `CRUISING`, `BRAKING` + brightness slider) throttled to 10 Hz (`100ms`).
 - **FR-TUN-02 (Constraint Validation Warnings):** Displays non-blocking validation warnings if `globalMinBrightness > globalMaxBrightness`, `idleEnterSpeedKmh > idleExitSpeedKmh`, or `brakingMinBrightness > brakingMaxBrightness`.
 - **FR-TUN-03 (In-App Ride Replay Simulator):** `TuningReplayCard` replays any recorded 50 Hz ride session through `RideStateMachine` using the current tuning sliders and a selectable replay speed stream (`RECORDED`, `BOSCH_EB21`, or `GPS_ONLY`), reporting total simulated braking episodes, `HARD_BRAKE`/`LIGHT_BRAKE` detection accuracy (`±750ms`), and `ROAD_BUMP` false-positive rejection accuracy.
+- **FR-TUN-04 (Standalone 50 Hz Web Workbench & JSON/Kotlin Config Round-Trip):** `/tools/telemetry-workbench/` provides a browser/GitHub Pages multi-track oscilloscope and 1:1 `RideStateMachine` simulator with Before/After state ribbons, diff highlighting, event bookmarks, and JSON/Kotlin config export/import paired with `TuningConfigSyncCard` on the Android `TuningScreen`.
 
 ---
 
@@ -174,3 +176,5 @@ Multicast at `50 Hz` (`20ms` interval) to `239.0.0.1:<audioSyncPort>` (default p
 | **VER-05** | Motion Safety Lock (`LockController`) | Update `LockController` with `(IDLE, true)`, `(CRUISING, true)`, `(BRAKING, true)`, and `forceUnlock()`. | `isLocked` is `false` in `IDLE`, `true` in `CRUISING`/`BRAKING`, and `false` when stopped. |
 | **VER-06** | WLED V2 84-Byte Audio Packet & FFT | Run 1024-point Hann FFT on a synthetic 1000 Hz sine wave and pack V2 buffer. | Packet is exactly 84 bytes, starts with `"00002\0"`, and dominant peak frequency resolves to ~`1000 Hz`. |
 | **VER-07** | Bosch Live Data V1.0 Protobuf & Replay | Decode `com.bosch.ebike.LiveData` wire payload (`speed`, `cadence`, `rider_power`, `battery_soc`, `bike_not_driving`) and run `TuningReplayCard` simulation. | Decodes all V1.0 fields accurately, tracks `presentFieldsMask`, and scores brake/bump markers deterministically. |
+| **VER-08** | Dual-Mode Local Socket Binding | Enable `lockToLocalNetwork = true` with private WLED target (`4.3.2.1` or `192.168.1.50`) while no local interface is available vs. Ethernet/Wi-Fi connected. | Blocks 5G/cellular leak when local link is down; binds `OkHttpClient` and `DatagramSocket` directly to `eth0` or `wlan0` when active. |
+| **VER-09** | Web Workbench & JSON Config Sync | Export JSON from `/tools/telemetry-workbench/` and import via `TuningConfigSyncCard` (`StateMachineConfigSerializer.fromJson`). | All 20 `StateMachineConfig` parameters round-trip losslessly and persist to `DataStore`. |

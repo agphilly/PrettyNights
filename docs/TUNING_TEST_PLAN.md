@@ -56,9 +56,17 @@ Open the recorded ride in **History** and inspect the **Bosch Live Data V1.0 (`e
 
 ---
 
-## Phase 4: External CSV Analysis & Regression Archive
-- Tap **Export CSV** on any session in **History** to share the unified CSV containing:
-  - Session metadata & Bosch V1.0 reliability summary headers.
-  - Stamped in-ride event markers (`# IN_RIDE_EVENT_MARKERS`).
-  - Raw Bosch `com.bosch.ebike.LiveData` notification packets (`# BOSCH_LIVE_DATA_V1_NOTIFICATIONS`).
-  - Full 50 Hz unified IMU + GPS + Bosch + State Machine telemetry (`# UNIFIED_50HZ_RIDE_TELEMETRY`).
+## Phase 4: Web Telemetry Workbench Visual Diffing & Config Round-Trip (`/tools/telemetry-workbench/`)
+1. **Export CSV from History**:
+   - Tap **Export CSV** on any session in **History** to share the unified 4-section CSV (`prettynights_session_<id>.csv` streamed via `FileProvider`) containing:
+     - Session metadata & Bosch V1.0 reliability summary headers.
+     - Stamped in-ride event markers (`# IN_RIDE_EVENT_MARKERS`).
+     - Raw Bosch `com.bosch.ebike.LiveData` notification packets (`# BOSCH_LIVE_DATA_V1_NOTIFICATIONS`).
+     - Full 50 Hz unified IMU + GPS + Bosch + State Machine telemetry (`# UNIFIED_50HZ_RIDE_TELEMETRY`).
+2. **Load into the Web Telemetry Workbench**:
+   - Open `/tools/telemetry-workbench/index.html` in a browser (or via GitHub Pages) and drag-and-drop `prettynights_session_<id>.csv`.
+   - Click the **Jump to Tricky Moment** chips (`ROAD_BUMP`, `LIGHT_BRAKE`, `HARD_BRAKE`, or `Diff #1..N`) to zoom directly into a ±3-second window around each event.
+   - Toggle signals (`Fused Accel`, `Raw Accel X/Y/Z`, `Bosch eb21 Speed`, `GPS 1Hz Speed`, `Bosch Age Sawtooth`, `Brightness`) and adjust the 20 state-machine sliders in the right-hand dock while watching the **BEFORE (Recorded)** vs. **AFTER (Simulated)** ribbons and **DIFF** strip update in `< 5 ms`.
+3. **Sync Tuned Parameters Back to the Phone**:
+   - Click **Sync Config (JSON / Kotlin)** in the Web Workbench and copy the JSON.
+   - In the Android app, open **Settings → Developer / Tuning**, locate the **Web Workbench Config Sync (JSON / Kotlin)** card, tap **Import / Edit JSON**, paste the JSON, and tap **Apply Tuned Config**.

@@ -3,6 +3,7 @@ package com.example.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -12,11 +13,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.PrettyNightsApp
+import com.example.R
 import com.example.config.AppConfig
+import com.example.wled.WledLinkType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -72,11 +77,18 @@ fun WledNetworkSettingsCard(
     onConfigSave: (AppConfig) -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val app = PrettyNightsApp.instance
+    val transportState by app.wledController.transportState.collectAsStateWithLifecycle()
+
     var wledHostInput by remember(config.wledHost) { mutableStateOf(config.wledHost) }
     var audioSyncPortInput by remember(config.audioSyncPort) { mutableStateOf(config.audioSyncPort.toString()) }
     var testResult by remember { mutableStateOf<String?>(null) }
 
     val (_, correctionNote) = remember(wledHostInput) { cleanHost(wledHostInput) }
+
+    LaunchedEffect(Unit) {
+        app.wledController.refreshTransport()
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -93,22 +105,213 @@ fun WledNetworkSettingsCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Wifi,
+                    imageVector = if (transportState.linkType == WledLinkType.ETHERNET_WIRED) {
+                        Icons.Default.SettingsEthernet
+                    } else {
+                        Icons.Default.Wifi
+                    },
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "LED Controller Target",
+                    text = "LED Controller Target & Dual-Mode Transport",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
             }
 
+            // --- LIVE DETECTED PHYSICAL LINK BANNER ---
+            val linkColor = when (transportState.linkType) {
+                WledLinkType.ETHERNET_WIRED -> Color(0xFF00C853)
+                WledLinkType.WIFI_BOUND -> Color(0xFF29B6F6)
+                WledLinkType.USB_SERIAL_OTG -> Color(0xFFFFB300)
+                WledLinkType.SYSTEM_DEFAULT -> MaterialTheme.colorScheme.secondary
+                WledLinkType.OFFLINE -> MaterialTheme.colorScheme.error
+            }
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("wled_active_transport_banner"),
+                shape = RoundedCornerShape(12.dp),
+                color = linkColor.copy(alpha = 0.12f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = when (transportState.linkType) {
+                                WledLinkType.ETHERNET_WIRED -> Icons.Default.SettingsEthernet
+                                WledLinkType.WIFI_BOUND -> Icons.Default.WifiLock
+                                WledLinkType.USB_SERIAL_OTG -> Icons.Default.Usb
+                                else -> Icons.Default.Router
+                            },
+                            contentDescription = null,
+                            tint = linkColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Column {
+                            Text(
+                                text = "Active Link: ${transportState.linkType.label}",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = linkColor
+                            )
+                            val ifaceDetails = buildString {
+                                if (!transportState.interfaceName.isNullOrBlank()) {
+                                    append(transportState.interfaceName)
+                                }
+                                if (!transportState.localIpAddress.isNullOrBlank()) {
+                                    if (isNotEmpty()) append(" • ")
+                                    append(transportState.localIpAddress)
+                                }
+                                if (transportState.lastPingLatencyMs != null && transportState.lastPingSuccess == true) {
+                                    if (isNotEmpty()) append(" • ")
+                                    append("${transportState.lastPingLatencyMs} ms RTT")
+                                }
+                                if (isEmpty()) {
+                                    append(
+                                        when (transportState.linkType) {
+                                            WledLinkType.ETHERNET_WIRED -> "Wired USB-C Ethernet priority active"
+                                            WledLinkType.WIFI_BOUND -> "Wi-Fi socket bound (5G/LTE cellular fallback blocked)"
+                                            WledLinkType.USB_SERIAL_OTG -> "USB-C Serial 115200 baud active"
+                                            else -> "Plug in USB-C Ethernet (charged) or connect Wi-Fi (charging)"
+                                        }
+                                    )
+                                }
+                            }
+                            Text(
+                                text = ifaceDetails,
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(linkColor.copy(alpha = 0.22f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = transportState.linkType.badgeText,
+                            color = linkColor,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            // --- DUAL-USE WORKFLOW TOGGLE: LOCK TO LOCAL ETHERNET / WI-FI ---
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text(
+                        text = stringResource(R.string.wled_lock_local_network_title),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = stringResource(R.string.wled_lock_local_network_desc),
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
+                    )
+                }
+                Switch(
+                    checked = config.lockToLocalNetwork,
+                    onCheckedChange = { enabled ->
+                        if (!isLocked) {
+                            onConfigSave(config.copy(lockToLocalNetwork = enabled))
+                        }
+                    },
+                    enabled = !isLocked,
+                    modifier = Modifier.testTag("switch_lock_local_network")
+                )
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
+
+            // --- QUICK HOST PRESETS FOR CHARGED (USB-C ETHERNET) vs CHARGING (WI-FI) ---
             Text(
-                text = "Recommend a hostname (e.g. prettylights.local) over a raw IP because the controller's IP is typically DHCP-assigned and can change. Raw IP entry still works.",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                text = "Quick Host Presets (Charged Wired vs. Charging Wi-Fi):",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AssistChip(
+                    onClick = {
+                        if (!isLocked) {
+                            wledHostInput = "4.3.2.1"
+                            onConfigSave(config.copy(wledHost = "4.3.2.1"))
+                        }
+                    },
+                    enabled = !isLocked,
+                    label = { Text("WLED-AP (4.3.2.1)", fontSize = 11.sp) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Wifi,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    },
+                    modifier = Modifier.testTag("preset_chip_wled_ap")
+                )
+
+                AssistChip(
+                    onClick = {
+                        if (!isLocked) {
+                            wledHostInput = "192.168.1.50"
+                            onConfigSave(config.copy(wledHost = "192.168.1.50"))
+                        }
+                    },
+                    enabled = !isLocked,
+                    label = { Text("Wired IP", fontSize = 11.sp) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.SettingsEthernet,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    },
+                    modifier = Modifier.testTag("preset_chip_wired_ip")
+                )
+
+                AssistChip(
+                    onClick = {
+                        if (!isLocked) {
+                            wledHostInput = "prettylights.local"
+                            onConfigSave(config.copy(wledHost = "prettylights.local"))
+                        }
+                    },
+                    enabled = !isLocked,
+                    label = { Text("mDNS", fontSize = 11.sp) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Dns,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    },
+                    modifier = Modifier.testTag("preset_chip_mdns")
+                )
+            }
 
             OutlinedTextField(
                 value = wledHostInput,
@@ -136,7 +339,7 @@ fun WledNetworkSettingsCard(
                             )
                         } else {
                             Text(
-                                text = "Address of the WLED device, e.g. prettylights.local or 192.168.1.50",
+                                text = "Use 4.3.2.1 when on WLED-AP Wi-Fi (charging), a static IP for USB-C Ethernet (charged), or prettylights.local.",
                                 fontSize = 11.sp
                             )
                         }
@@ -192,9 +395,14 @@ fun WledNetworkSettingsCard(
                             testResult = "Checking..."
                             scope.launch {
                                 val ok = withContext(Dispatchers.IO) {
-                                    PrettyNightsApp.instance.wledController.ping(cleaned)
+                                    app.wledController.ping(cleaned)
                                 }
-                                testResult = if (ok) "Reachable" else "Unreachable"
+                                val latency = app.wledController.transportState.value.lastPingLatencyMs
+                                testResult = if (ok) {
+                                    if (latency != null) "Reachable (${latency} ms)" else "Reachable"
+                                } else {
+                                    "Unreachable"
+                                }
                             }
                         }
                     },
@@ -207,9 +415,10 @@ fun WledNetworkSettingsCard(
                 }
 
                 testResult?.let { result ->
-                    val color = when (result) {
-                        "Reachable" -> Color(0xFF4CAF50)
-                        "Unreachable" -> MaterialTheme.colorScheme.error
+                    val isReachable = result.startsWith("Reachable")
+                    val color = when {
+                        isReachable -> Color(0xFF4CAF50)
+                        result == "Unreachable" -> MaterialTheme.colorScheme.error
                         else -> MaterialTheme.colorScheme.primary
                     }
 
@@ -230,7 +439,7 @@ fun WledNetworkSettingsCard(
                             )
                         } else {
                             Icon(
-                                imageVector = if (result == "Reachable") Icons.Default.CheckCircle else Icons.Default.Warning,
+                                imageVector = if (isReachable) Icons.Default.CheckCircle else Icons.Default.Warning,
                                 contentDescription = null,
                                 tint = color,
                                 modifier = Modifier.size(16.dp)
@@ -243,6 +452,35 @@ fun WledNetworkSettingsCard(
                             fontSize = 13.sp
                         )
                     }
+                }
+            }
+
+            // --- DUAL-WORKFLOW HARDWARE TIPS ---
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "Rider Connection Workflows",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "• Charged Phone (USB-C to Ethernet): Plug in a USB-C Ethernet adapter wired to an Ethernet WLED controller (e.g., WT32-ETH01 / QuinLED-Dig Ethernet). Pretty Nights automatically prioritizes the wired link.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "• Charging Phone (Wi-Fi): Connect to WLED-AP (4.3.2.1) and enable 'Disable WiFi sleep' in WLED Config → WiFi Setup. Pretty Nights binds sockets directly to Wi-Fi so Android never falls back to 5G.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

@@ -81,3 +81,16 @@ Located in **Dev Tuning** (via **Settings $\rightarrow$ Developer & Tuning Dashb
 - **Automated Ground-Truth Scoring**:
   - **Brake Markers Detected**: Percentage of stamped `HARD_BRAKE` and `LIGHT_BRAKE` markers that have a simulated `BRAKING` or `BRAKING_HOLD` interval within `±750 ms`.
   - **Road Bumps Rejected**: Percentage of stamped `ROAD_BUMP` markers where the state machine stayed out of `BRAKING` within `±750 ms`.
+
+---
+
+## 5. Standalone 50 Hz Web Telemetry & State-Machine Workbench (`/tools/telemetry-workbench/`)
+For deep visual inspection of tricky road events on a larger screen, open `/tools/telemetry-workbench/index.html` in any desktop browser (or host `/tools/telemetry-workbench/` on GitHub Pages):
+1. **Load Exported CSVs or Built-In Tricky Ride**:
+   - Drag and drop any exported `prettynights_session_<id>.csv` onto the canvas, or click **Load Built-In Tricky Ride (50 Hz)** to inspect a 30-second (`1,500`-tick) reference capture featuring a sharp pothole (`ROAD_BUMP`), a light check-brake (`LIGHT_BRAKE`), downhill brake-pumping (`HARD_BRAKE`), and an emergency stop with 1 Hz GPS lag vs. Bosch `eb21` wheel speed.
+2. **Synchronized 5-Track Oscilloscope**:
+   - **BEFORE (Recorded)** and **AFTER (Simulated)** state ribbons stacked directly above a violet **DIFF (`Before ≠ After`)** band so you can immediately see every 20 ms tick where your new slider values alter state transitions.
+   - Toggleable signal overlays (`Fused Accel`, `Raw Accel X/Y/Z`, `Threshold Overlays`, `Active Speed`, `Bosch eb21 Speed`, `GPS 1Hz Speed`, `Brightness Rec vs Sim`, `Bosch Age Sawtooth`, and `Cadence & Power`) with mouse-wheel zoom and a 20 ms crosshair HUD showing live `decelDebounceElapsedMs` and `cooldownElapsedMs` timers.
+3. **One-Click JSON & Kotlin Round-Trip to Android**:
+   - Click **Sync Config (JSON / Kotlin)** in the Web Workbench to copy the tuned `StateMachineConfig` JSON (or Kotlin code snippet).
+   - Open **Settings → Developer / Tuning** in the Android app, tap **Import / Edit JSON** inside the **Web Workbench Config Sync** card, and paste the JSON to apply and persist all 20 parameters to Jetpack DataStore.

@@ -1,14 +1,16 @@
 package com.example.wled
 
+import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import com.example.config.WledLook
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
-import okhttp3.*
+import kotlinx.coroutines.flow.StateFlow
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.IOException
-import java.util.concurrent.TimeUnit
+import java.net.DatagramSocket
 
 data class WledPreset(
     val id: Int,
@@ -32,23 +34,33 @@ data class WledStatePayload(
     val seg: List<WledSegment>? = null
 )
 
-class WledController {
+class WledController(context: Context? = null) {
 
     private val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
     private val payloadAdapter = moshi.adapter(WledStatePayload::class.java)
 
-    // Setup an OkHttp client with a fast 1-second timeout as required by System Design Section 6
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(1200, TimeUnit.MILLISECONDS)
-        .writeTimeout(1200, TimeUnit.MILLISECONDS)
-        .readTimeout(1200, TimeUnit.MILLISECONDS)
-        .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES)) // connection keep-alive
-        .build()
+    val networkTransport = WledNetworkTransport(context)
+    val transportState: StateFlow<WledTransportState> = networkTransport.transportState
 
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
+    fun updateTransportConfig(lockToLocalNetwork: Boolean, usbSerialFallbackEnabled: Boolean) {
+        networkTransport.lockToLocalNetwork = lockToLocalNetwork
+        networkTransport.usbSerialFallbackEnabled = usbSerialFallbackEnabled
+    }
+
+    fun refreshTransport(): WledTransportState {
+        return networkTransport.refreshTransportState()
+    }
+
+    fun bindUdpSocket(socket: DatagramSocket): Boolean {
+        return networkTransport.bindUdpSocket(socket)
+    }
+
     /**
-     * Performs a fast ping to the controller to check for reachability.
+     * Performs a fast ping to the controller to check for reachability over the bound
+     * local network (USB-C Ethernet priority -> Wi-Fi Bound -> System Default) and records
+     * round-trip latency in milliseconds.
      */
     fun ping(host: String): Boolean {
         val url = cleanUrl(host, "/json/state")
@@ -56,12 +68,21 @@ class WledController {
             .url(url)
             .get()
             .build()
+        val startMs = SystemClock.elapsedRealtime()
         return try {
+            val client = networkTransport.getHttpClient()
             client.newCall(request).execute().use { response ->
-                response.isSuccessful
+                val elapsedMs = (SystemClock.elapsedRealtime() - startMs).coerceAtLeast(1L)
+                val ok = response.isSuccessful
+                networkTransport.recordPingResult(host, ok, elapsedMs)
+                ok
             }
         } catch (e: Exception) {
-            false
+            // Check if direct USB-C Serial WLED device is active as fallback
+            val serialOk = networkTransport.trySendUsbSerialJson("""{"v":true}""")
+            val elapsedMs = (SystemClock.elapsedRealtime() - startMs).coerceAtLeast(1L)
+            networkTransport.recordPingResult(host, serialOk, if (serialOk) elapsedMs else null)
+            serialOk
         }
     }
 
@@ -72,7 +93,7 @@ class WledController {
         val url = cleanUrl(host, "/presets.json")
         val request = Request.Builder().url(url).get().build()
         return try {
-            client.newCall(request).execute().use { response ->
+            networkTransport.getHttpClient().newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
                 val bodyString = response.body?.string() ?: return null
                 val jsonObject = org.json.JSONObject(bodyString)
@@ -101,7 +122,7 @@ class WledController {
         val url = cleanUrl(host, "/json/eff")
         val request = Request.Builder().url(url).get().build()
         return try {
-            client.newCall(request).execute().use { response ->
+            networkTransport.getHttpClient().newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
                 val bodyString = response.body?.string() ?: return null
                 val jsonArray = org.json.JSONArray(bodyString)
@@ -124,7 +145,7 @@ class WledController {
         val url = cleanUrl(host, "/json/pal")
         val request = Request.Builder().url(url).get().build()
         return try {
-            client.newCall(request).execute().use { response ->
+            networkTransport.getHttpClient().newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
                 val bodyString = response.body?.string() ?: return null
                 val jsonArray = org.json.JSONArray(bodyString)
@@ -141,7 +162,8 @@ class WledController {
     }
 
     /**
-     * Sends the configured WledLook along with dynamic brightness to the ESP32.
+     * Sends the configured WledLook along with dynamic brightness to the ESP32/ESP8266
+     * over the bound USB-C Ethernet or Wi-Fi interface (and mirrors over USB Serial if connected).
      */
     fun sendState(host: String, look: WledLook, brightness: Float): Boolean {
         val url = cleanUrl(host, "/json/state")
@@ -170,23 +192,43 @@ class WledController {
         )
 
         val json = payloadAdapter.toJson(payload)
-        val body = json.toRequestBody(jsonMediaType)
 
+        // Also send over direct USB-C Serial (115200 baud JSON API) if a USB Serial WLED device is plugged in
+        val sentViaUsbSerial = networkTransport.trySendUsbSerialJson(json)
+
+        val body = json.toRequestBody(jsonMediaType)
         val request = Request.Builder()
             .url(url)
             .post(body)
             .build()
 
+        val startMs = SystemClock.elapsedRealtime()
+        val client = networkTransport.getHttpClient()
+
         return try {
             client.newCall(request).execute().use { response ->
+                val elapsedMs = (SystemClock.elapsedRealtime() - startMs).coerceAtLeast(1L)
                 if (!response.isSuccessful) {
                     Log.d("WledController", "WLED returned non-200 response: Code ${response.code}")
+                } else {
+                    networkTransport.recordPingResult(host, true, elapsedMs)
                 }
-                response.isSuccessful
+                response.isSuccessful || sentViaUsbSerial
             }
         } catch (e: Exception) {
-            Log.d("WledController", "WLED unreachable while sending state to $host: ${e.message}")
-            false
+            // Fast 1-attempt immediate retry for transient 2.4 GHz Wi-Fi frame drop
+            try {
+                client.newCall(request).execute().use { retryResponse ->
+                    val elapsedMs = (SystemClock.elapsedRealtime() - startMs).coerceAtLeast(1L)
+                    if (retryResponse.isSuccessful) {
+                        networkTransport.recordPingResult(host, true, elapsedMs)
+                    }
+                    retryResponse.isSuccessful || sentViaUsbSerial
+                }
+            } catch (retryEx: Exception) {
+                Log.d("WledController", "WLED unreachable while sending state to $host: ${retryEx.message}")
+                sentViaUsbSerial
+            }
         }
     }
 

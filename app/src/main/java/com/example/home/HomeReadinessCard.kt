@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.config.AppConfig
 import com.example.ride.BoschLiveDataState
+import com.example.wled.WledLinkType
+import com.example.wled.WledTransportState
 
 @Composable
 fun HomeReadinessCard(
@@ -31,6 +33,7 @@ fun HomeReadinessCard(
     microphoneGranted: Boolean,
     permissionPermanentlyDenied: Boolean,
     wledStatus: ScreenWledStatus,
+    wledTransportState: WledTransportState = WledTransportState(),
     boschState: BoschLiveDataState = BoschLiveDataState(),
     bluetoothGranted: Boolean = true,
     context: Context,
@@ -243,7 +246,7 @@ fun HomeReadinessCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                     Box(
                         modifier = Modifier
                             .size(36.dp)
@@ -252,23 +255,33 @@ fun HomeReadinessCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Wifi,
+                            imageVector = when (wledTransportState.linkType) {
+                                WledLinkType.ETHERNET_WIRED -> Icons.Default.SettingsEthernet
+                                WledLinkType.USB_SERIAL_OTG -> Icons.Default.Usb
+                                else -> Icons.Default.Wifi
+                            },
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
+                    val linkBadge = wledTransportState.linkType.badgeText
+                    val rttSuffix = wledTransportState.lastPingLatencyMs?.let { " • ${it}ms" } ?: ""
                     Column {
-                        Text("WLED controller", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "WLED controller ($linkBadge)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
                         Text(
                             text = if (wledBypassed) {
                                 "Bypassed in Log Only Mode (WLED not required)"
                             } else {
                                 when (wledStatus) {
-                                    ScreenWledStatus.CHECKING -> "Checking ${config.wledHost}..."
-                                    ScreenWledStatus.REACHABLE -> "Connected to ${config.wledHost}"
-                                    else -> "Offline or unavailable at ${config.wledHost}"
+                                    ScreenWledStatus.CHECKING -> "Checking ${config.wledHost} via ${wledTransportState.linkType.label}..."
+                                    ScreenWledStatus.REACHABLE -> "Connected to ${config.wledHost} (${wledTransportState.linkType.label}$rttSuffix)"
+                                    else -> "Offline at ${config.wledHost} (${wledTransportState.linkType.label})"
                                 }
                             },
                             style = MaterialTheme.typography.labelSmall,

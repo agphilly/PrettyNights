@@ -24,6 +24,10 @@ For complete functional requirements, state-machine matrices, packet layouts, UI
   - Captures system audio playback via Android 10+ `MediaProjection` (`AudioPlaybackCaptureConfiguration`) or microphone fallback at 44.1 kHz 16-bit mono PCM, computes a 1024-point Hann-windowed radix-2 FFT across 16 logarithmic bands with software AGC, renders a live spectrum visualizer on the Home screen, and multicasts 84-byte Little-Endian **WLED Audio Sync V2** packets to `239.0.0.1:11988`.
 - **WLED Look & Pattern Studio (`PatternsScreen` & `WledController`)**:
   - Independent per-state lighting profiles (`idleLook`, `cruisingLook`, `brakingLook`) supporting either saved WLED Preset IDs (`ps`) or custom segments (`fx` effect, `fp` palette, 3 RGB color slots, `sx` speed, `ix` intensity, and transition timing) with live controller discovery (`/presets.json`, `/json/eff`, `/json/pal`).
+- **Dual-Mode Physical Transport & Local Socket Binding (`WledNetworkTransport.kt`)**:
+  - Automatically adapts to both rider power setups without manual Android network switching: prioritizes **USB-C to Ethernet (`TRANSPORT_ETHERNET`)** when running on battery, or explicitly binds HTTP and UDP sockets to **Wi-Fi (`TRANSPORT_WIFI`)** when charging so Android never routes private WLED traffic (`4.3.2.1`, `192.168.x.x`, `prettylights.local`) over 5G/LTE mobile data. Also supports **USB-C Serial (`115200` baud)** JSON mirroring.
+- **Standalone 50 Hz Web Telemetry & State-Machine Workbench (`tools/telemetry-workbench/` & `TuningConfigSyncCard.kt`)**:
+  - Zero-dependency browser / GitHub Pages oscilloscope and state-machine tuning bench that loads 4-section Pretty Nights CSV exports, plots selectable multi-track signals (`fused_accel_ms2`, `accel_x/y/z`, `speed_kmh`, `bosch_speed_kmh`, `gps_speed_kmh`, `bosch_age_ms`, `brightness`), re-runs a 1:1 port of `RideStateMachine` in `< 5 ms` as you drag tuning sliders, highlights **Before (Recorded) vs. After (Simulated)** state diffs, and round-trips tuned configs via JSON or Kotlin snippets with the Android **Developer / Tuning** screen.
 
 ---
 
@@ -33,11 +37,20 @@ For complete functional requirements, state-machine matrices, packet layouts, UI
 | :--- | :--- |
 | [**`FEATURE_SPECIFICATIONS.md`**](./FEATURE_SPECIFICATIONS.md) | End-to-end product & engineering requirements, state formulas, packet schemas, and verification matrix. |
 | [**`docs/ARCHITECTURE.md`**](./docs/ARCHITECTURE.md) | System architecture diagram, 50 Hz sensor-to-WLED pipeline, foreground services, and persistence design. |
-| [**`docs/COMPONENT_MAP.md`**](./docs/COMPONENT_MAP.md) | Complete directory tree and file-by-file responsibilities across all 34 Kotlin source files. |
+| [**`docs/COMPONENT_MAP.md`**](./docs/COMPONENT_MAP.md) | Complete directory tree and file-by-file responsibilities across all 36 Kotlin source files and the Web Workbench. |
 | [**`docs/PROTOCOLS.md`**](./docs/PROTOCOLS.md) | WLED HTTP JSON API, UDP Port 11988 V2 binary layout, Bosch Live Data Interface V1.0 (`eb20`/`eb21`) protobuf spec, and IMU projection math. |
-| [**`docs/TUNING_AND_TELEMETRY.md`**](./docs/TUNING_AND_TELEMETRY.md) | 12-step field-tuning methodology, `StateMachineConfig` parameter reference table, and Replay Simulator workflow. |
-| [**`docs/TUNING_TEST_PLAN.md`**](./docs/TUNING_TEST_PLAN.md) | 4-phase real-world data collection, Bosch V1.0 reliability audit, iterative replay tuning, and CSV analysis plan. |
+| [**`docs/TUNING_AND_TELEMETRY.md`**](./docs/TUNING_AND_TELEMETRY.md) | 12-step field-tuning methodology, `StateMachineConfig` parameter reference table, Replay Simulator, and Web Workbench workflow. |
+| [**`docs/TUNING_TEST_PLAN.md`**](./docs/TUNING_TEST_PLAN.md) | 4-phase real-world data collection, Bosch V1.0 reliability audit, iterative replay tuning, and Web Workbench CSV analysis plan. |
 | [**`docs/CHANGELOG.md`**](./docs/CHANGELOG.md) | Build-by-build release history, semantic versions, and suggested Git commit messages. |
+| [**`tools/telemetry-workbench/`**](./tools/telemetry-workbench/README.md) | Standalone browser / GitHub Pages 50 Hz CSV oscilloscope, Before/After state-machine tuning workbench, and JSON/Kotlin config bridge. |
+
+### External Hardware & Protocol References
+- **Official WLED Knowledge Base**: [https://kno.wled.ge/](https://kno.wled.ge/)
+  - [WLED JSON API (`/json/state`, `/json/eff`, `/json/pal`)](https://kno.wled.ge/interfaces/json-api/)
+  - [WLED Presets (`/presets.json`)](https://kno.wled.ge/features/presets/)
+  - [WLED Effects (`fx`)](https://kno.wled.ge/features/effects/) & [Color Palettes (`fp`)](https://kno.wled.ge/features/palettes/)
+  - [WLED Audio-Reactive & UDP Sound Sync V2 (Port `11988`)](https://kno.wled.ge/advanced/audio-reactive/)
+- **Bosch eBike Systems — The smart system**: *Live Data Interface V1.0 (Release v19)* (`eb20` / `eb21` BLE GATT & Protobuf specification, documented in [`docs/PROTOCOLS.md`](./docs/PROTOCOLS.md)).
 
 ---
 

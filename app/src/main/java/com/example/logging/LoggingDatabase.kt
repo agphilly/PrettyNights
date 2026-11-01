@@ -19,7 +19,10 @@ data class SessionEntity(
     val configuredSpeedSource: String = "GPS_ONLY"
 )
 
-@Entity(tableName = "state_intervals")
+@Entity(
+    tableName = "state_intervals",
+    indices = [Index(value = ["sessionId", "startTimeMonotonicMs"])]
+)
 data class StateIntervalEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val sessionId: Long,
@@ -30,7 +33,10 @@ data class StateIntervalEntity(
     val endBrightness: Float
 )
 
-@Entity(tableName = "wled_intervals")
+@Entity(
+    tableName = "wled_intervals",
+    indices = [Index(value = ["sessionId", "startTimeMonotonicMs"])]
+)
 data class WledIntervalEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val sessionId: Long,
@@ -43,7 +49,10 @@ data class WledIntervalEntity(
 /**
  * 50 Hz unified ride telemetry sample recorded on every ride (both WLED-enabled and Log-Only).
  */
-@Entity(tableName = "imu_samples")
+@Entity(
+    tableName = "imu_samples",
+    indices = [Index(value = ["sessionId", "timestampMonotonicMs"])]
+)
 data class ImuSampleEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val sessionId: Long,
@@ -72,7 +81,10 @@ data class ImuSampleEntity(
  * Raw Bosch eBike Systems Live Data Interface V1.0 (`com.bosch.ebike.LiveData`) notification packet
  * received on characteristic `0000eb21-eaa2-11e9-81b4-2a2ae2dbcce4`.
  */
-@Entity(tableName = "bosch_samples")
+@Entity(
+    tableName = "bosch_samples",
+    indices = [Index(value = ["sessionId", "timestampMonotonicMs"])]
+)
 data class BoschSampleEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val sessionId: Long,
@@ -102,7 +114,10 @@ data class BoschSampleEntity(
 /**
  * Live in-ride event marker stamped by the rider (e.g., HARD_BRAKE, LIGHT_BRAKE, ROAD_BUMP, BOSCH_GLITCH).
  */
-@Entity(tableName = "ride_markers")
+@Entity(
+    tableName = "ride_markers",
+    indices = [Index(value = ["sessionId", "timestampMonotonicMs"])]
+)
 data class RideMarkerEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val sessionId: Long,
@@ -214,7 +229,7 @@ interface RideMarkerDao {
         BoschSampleEntity::class,
         RideMarkerEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class LoggingDatabase : RoomDatabase() {

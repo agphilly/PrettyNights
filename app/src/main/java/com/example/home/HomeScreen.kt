@@ -74,10 +74,11 @@ fun HomeScreen(
     val isMusicRunning by MusicService.isServiceRunning.collectAsStateWithLifecycle()
     val musicBands by MusicService.fftBands.collectAsStateWithLifecycle()
 
-    // Live markers & Bosch state
+    // Live markers, Bosch state, and WLED physical transport state
     val markerCount by app.orchestrator.markerCountFlow.collectAsStateWithLifecycle()
     val lastMarkerLabel by app.orchestrator.lastMarkerLabelFlow.collectAsStateWithLifecycle()
     val boschState by app.boschSpeedProvider.liveStateFlow.collectAsStateWithLifecycle()
+    val wledTransportState by app.wledController.transportState.collectAsStateWithLifecycle()
 
     var selectedMode by remember { mutableStateOf("STANDARD") }
     var locationGranted by remember {
@@ -344,6 +345,7 @@ fun HomeScreen(
                 microphoneGranted = microphoneGranted,
                 permissionPermanentlyDenied = permissionPermanentlyDenied,
                 wledStatus = wledStatus,
+                wledTransportState = wledTransportState,
                 boschState = boschState,
                 bluetoothGranted = bluetoothGranted,
                 context = context,

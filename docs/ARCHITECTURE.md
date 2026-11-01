@@ -68,14 +68,18 @@
   - **Home (`com.example.home`)**: Readiness banner (`WLED` + `Bosch BLE`), mode selector (`Ride Mode` vs `Music Mode`), Start/Stop CTA, live **Stamp Live Event Marker** bar during rides, interactive bike/audio visualizer, and the **Log Only Mode (No WLED)** toggle card at the bottom of the screen.
   - **Patterns (`com.example.patterns`)**: Per-state lighting look studio (`IDLE`, `CRUISING`, `BRAKING`) with preset picker, RGB color sliders, effect/palette selectors, and transition timing.
   - **History (`com.example.history`)**: Session viewer with Bosch Live Data V1.0 reliability audit card, session notes editor, state/marker breakdowns, and 4-section CSV export (`SessionExportHelper`).
-  - **Settings (`com.example.settings`)**: WLED network host/port sanitization, speed source priority, 3-axis IMU calibration, and Developer Tuning navigation.
-  - **Tuning (`com.example.tuning`)**: 150 ms live state machine + Bosch `eb21` telemetry panel, stationary manual look override, **In-App Ride Replay Simulator** (`TuningReplayCard`), and parameter sliders.
+  - **Settings (`com.example.settings`)**: WLED network host/port sanitization, live physical transport link banner (`USB-C Ethernet`, `Wi-Fi Bound`, `USB Serial`), speed source priority, 3-axis IMU calibration, and Developer Tuning navigation.
+  - **Tuning (`com.example.tuning`)**: 150 ms live state machine + Bosch `eb21` telemetry panel, stationary manual look override, **In-App Ride Replay Simulator** (`TuningReplayCard`), **Web Workbench Config Sync (JSON / Kotlin)** (`TuningConfigSyncCard`), and parameter sliders.
+
+### F. Standalone Web Telemetry & State-Machine Workbench (`/tools/telemetry-workbench/`)
+- Zero-dependency desktop browser / GitHub Pages application (`index.html`, `styles.css`, `workbench.js`) that parses 4-section Pretty Nights CSV exports, renders a 5-track synchronized `<canvas>` oscilloscope (`BEFORE` state ribbon, `AFTER` state ribbon, `DIFF` band, Acceleration + Thresholds, and Speed + Bosch + Brightness), runs a 1:1 JavaScript port of `RideStateMachine` in `< 5 ms` as sliders move, and exports/imports `StateMachineConfig` JSON or Kotlin snippets.
 
 ---
 
 ## 3. Documentation Index (`/docs`)
 - **[CHANGELOG.md](./CHANGELOG.md)**: Build-by-build release history, suggested Git commit messages, and the *"Push to GitHub"* workflow.
-- **[COMPONENT_MAP.md](./COMPONENT_MAP.md)**: Complete package hierarchy and file-level responsibilities across all 34 Kotlin files.
-- **[PROTOCOLS.md](./PROTOCOLS.md)**: WLED HTTP JSON API, UDP Port 11988 Audio-Reactive V2 packet structure, Bosch Live Data Interface V1.0 (`eb20`/`eb21`) protobuf spec, and IMU calibration math.
-- **[TUNING_AND_TELEMETRY.md](./TUNING_AND_TELEMETRY.md)**: 12-step tuning methodology, `StateMachineConfig` reference table, and Replay Simulator guide.
-- **[TUNING_TEST_PLAN.md](./TUNING_TEST_PLAN.md)**: 4-phase real-world ride data collection, Bosch V1.0 reliability audit, and iterative replay test plan.
+- **[COMPONENT_MAP.md](./COMPONENT_MAP.md)**: Complete package hierarchy and file-level responsibilities across all 36 Kotlin files and `/tools/telemetry-workbench/`.
+- **[PROTOCOLS.md](./PROTOCOLS.md)**: WLED HTTP JSON API, Dual-Mode local socket binding (`TRANSPORT_ETHERNET` / `TRANSPORT_WIFI`), UDP Port 11988 Audio-Reactive V2 packet structure, Bosch Live Data Interface V1.0 (`eb20`/`eb21`) protobuf spec, and IMU calibration math.
+- **[TUNING_AND_TELEMETRY.md](./TUNING_AND_TELEMETRY.md)**: 12-step tuning methodology, `StateMachineConfig` reference table, Replay Simulator, and Web Workbench guide.
+- **[TUNING_TEST_PLAN.md](./TUNING_TEST_PLAN.md)**: 4-phase real-world ride data collection, Bosch V1.0 reliability audit, iterative replay, and Web Workbench CSV analysis plan.
+- **[../tools/telemetry-workbench/README.md](../tools/telemetry-workbench/README.md)**: Standalone 50 Hz Web Telemetry & State-Machine Workbench user guide.

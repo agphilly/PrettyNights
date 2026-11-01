@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">Pretty Nights</string>
+    <string name="wled_transport_ethernet">USB-C Ethernet (Wired)</string>
+    <string name="wled_transport_wifi_bound">Wi-Fi Bound (No 5G Fallback)</string>
+    <string name="wled_transport_usb_serial">USB-C Serial (115200 Baud)</string>
+    <string name="wled_transport_standard">System Default Routing</string>
+    <string name="wled_transport_offline">No Local Interface</string>
+    <string name="wled_lock_local_network_title">Lock WLED to Local Ethernet / Wi-Fi</string>
+    <string name="wled_lock_local_network_desc">Auto-prioritizes USB-C Ethernet when plugged in, or locks to Wi-Fi while charging so Android never routes WLED packets over 5G/LTE.</string>
+    <string name="wled_preset_ap">WLED-AP (4.3.2.1)</string>
+    <string name="wled_preset_mdns">mDNS (prettylights.local)</string>
+    <string name="wled_preset_wired">Wired Static (192.168.1.50)</string>
 </resources>

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pretty Nights — 50 Hz Telemetry & State-Machine Workbench</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Top Header Bar -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-badge">PN</div>
+      <div>
+        <div class="brand-title">Pretty Nights — 50 Hz Telemetry &amp; State-Machine Workbench</div>
+        <div class="brand-subtitle">Interactive CSV Signal Oscilloscope, Deterministic Before/After State Replay &amp; Android Config Sync</div>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <input type="file" id="csvFileInput" accept=".csv,text/csv" style="display: none;" />
+      <button class="btn btn-primary" id="btnLoadCsv" title="Load a Pretty Nights 4-section CSV export">
+        <span>Load Ride CSV</span>
+      </button>
+      <button class="btn" id="btnLoadSampleRide" title="Load built-in 50 Hz ride with pothole, brake pump, hard stop &amp; Bosch eb21 lag">
+        <span>Load Built-In Tricky Ride (50 Hz)</span>
+      </button>
+      <button class="btn" id="btnDownloadSampleCsv" title="Download the current loaded session as a 4-section Pretty Nights CSV">
+        <span>Download Current CSV</span>
+      </button>
+      <button class="btn btn-violet" id="btnOpenConfigModal" title="Export or Import JSON config or copy Kotlin StateMachineConfig">
+        <span>Sync Config (JSON / Kotlin)</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Session Metadata & Bosch V1.0 Reliability Strip -->
+  <section class="meta-strip">
+    <div class="meta-pills">
+      <div class="meta-item">
+        <span class="meta-label">Session:</span>
+        <span class="meta-val highlight-cyan" id="metaSessionTitle">—</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Mode:</span>
+        <span class="meta-val" id="metaMode">—</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">50 Hz Ticks:</span>
+        <span class="meta-val" id="metaTicks">0</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Duration:</span>
+        <span class="meta-val" id="metaDuration">0.0s</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Bosch eb21 Freshness:</span>
+        <span class="meta-val highlight-green" id="metaBoschFreshness">—</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Mean |Bosch - GPS|:</span>
+        <span class="meta-val" id="metaSpeedDelta">—</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Replay Time:</span>
+        <span class="meta-val highlight-violet" id="metaSimLatency">0.0 ms</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Workspace -->
+  <main class="workspace">
+    <!-- Left Visualization Column -->
+    <div class="viz-column">
+      <!-- Jump-to-Event & Diff Bookmarks Bar -->
+      <div class="bookmark-bar" id="bookmarkBar">
+        <span class="bookmark-title">Jump to Tricky Moment:</span>
+        <div id="bookmarkChipsContainer" style="display: flex; gap: 6px; align-items: center;"></div>
+      </div>
+
+      <!-- Signal Selector & Zoom Bar -->
+      <div class="signal-bar">
+        <div class="signal-toggles" id="signalToggles">
+          <div class="signal-pill active" data-signal="fusedAccel">
+            <span class="swatch" style="background: #f43f5e;"></span>
+            <span>Fused Accel (m/s²)</span>
+          </div>
+          <div class="signal-pill" data-signal="rawAccelXYZ">
+            <span class="swatch" style="background: #a3e635;"></span>
+            <span>Raw Accel X/Y/Z</span>
+          </div>
+          <div class="signal-pill active" data-signal="thresholds">
+            <span class="swatch" style="background: #fbbf24;"></span>
+            <span>Threshold Overlays</span>
+          </div>
+          <div class="signal-pill active" data-signal="activeSpeed">
+            <span class="swatch" style="background: #38bdf8;"></span>
+            <span>Active Speed (km/h)</span>
+          </div>
+          <div class="signal-pill active" data-signal="boschSpeed">
+            <span class="swatch" style="background: #22c55e;"></span>
+            <span>Bosch eb21 Speed</span>
+          </div>
+          <div class="signal-pill active" data-signal="gpsSpeed">
+            <span class="swatch" style="background: #94a3b8;"></span>
+            <span>GPS 1Hz Speed</span>
+          </div>
+          <div class="signal-pill active" data-signal="brightness">
+            <span class="swatch" style="background: #c084fc;"></span>
+            <span>Brightness (Rec vs Sim)</span>
+          </div>
+          <div class="signal-pill" data-signal="boschAge">
+            <span class="swatch" style="background: #fb923c;"></span>
+            <span>Bosch Age Sawtooth (ms)</span>
+          </div>
+          <div class="signal-pill" data-signal="cadencePower">
+            <span class="swatch" style="background: #2dd4bf;"></span>
+            <span>Cadence &amp; Rider Power</span>
+          </div>
+        </div>
+
+        <div class="zoom-controls">
+          <span id="viewportRangeLabel">0.00s – 0.00s</span>
+          <button class="btn btn-sm" id="btnZoomIn" title="Zoom In (or scroll wheel on graph)">+ Zoom In</button>
+          <button class="btn btn-sm" id="btnZoomOut" title="Zoom Out">- Zoom Out</button>
+          <button class="btn btn-sm" id="btnZoomReset" title="Reset to full ride duration">Full Ride</button>
+        </div>
+      </div>
+
+      <!-- Synchronized Multi-Track Canvas -->
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <canvas id="telemetryCanvas"></canvas>
+        <div class="drop-overlay" id="dropOverlay">
+          <div style="font-size: 16px; font-weight: 700; color: var(--primary);">Drop Pretty Nights CSV File Here</div>
+          <div style="font-size: 12px; color: var(--text-muted);">Supports 4-section unified 50 Hz IMU + Bosch Live Data V1.0 exports</div>
+        </div>
+      </div>
+
+      <!-- Synchronized 20 ms Crosshair Inspection HUD -->
+      <div class="hud-bar">
+        <div class="hud-cell">
+          <div class="hud-cell-title">Tick &amp; Elapsed</div>
+          <div class="hud-cell-value" id="hudTick">#— @ —s</div>
+        </div>
+        <div class="hud-cell">
+          <div class="hud-cell-title">Before (Recorded)</div>
+          <div class="hud-cell-value" id="hudBeforeState">—</div>
+        </div>
+        <div class="hud-cell">
+          <div class="hud-cell-title">After (Simulated)</div>
+          <div class="hud-cell-value" id="hudAfterState">—</div>
+        </div>
+        <div class="hud-cell">
+          <div class="hud-cell-title">Brightness (Rec → Sim)</div>
+          <div class="hud-cell-value" id="hudBrightness">— → —</div>
+        </div>
+        <div class="hud-cell">
+          <div class="hud-cell-title">Longitudinal Accel</div>
+          <div class="hud-cell-value" id="hudAccel">— m/s²</div>
+        </div>
+        <div class="hud-cell">
+          <div class="hud-cell-title">Speed (Act / Bosch / GPS)</div>
+          <div class="hud-cell-value" id="hudSpeed">— / — / — km/h</div>
+        </div>
+        <div class="hud-cell">
+          <div class="hud-cell-title">Debounce &amp; Cooldown</div>
+          <div class="hud-cell-value" id="hudTimers">Deb: 0ms • Cool: 0ms</div>
+        </div>
+        <div class="hud-cell">
+          <div class="hud-cell-title">Bosch Age &amp; Marker</div>
+          <div class="hud-cell-value" id="hudBoschMarker">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right-Hand State Machine Tuning Dock -->
+    <aside class="tuning-dock">
+      <div class="dock-header">
+        <div class="dock-title-row">
+          <span class="dock-title">State Machine Tuning</span>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn btn-sm" id="btnResetDefaults" title="Reset sliders to factory StateMachineConfig defaults">Factory Defaults</button>
+          </div>
+        </div>
+
+        <!-- Before vs After Scorecard -->
+        <div class="scorecard">
+          <div class="scorecard-title">
+            <span>Before (Recorded) vs After (Tuned)</span>
+            <span id="scoreDiffBadge" style="color: #d8b4fe;">0 diff ticks</span>
+          </div>
+          <div class="score-row">
+            <span class="score-label">Brake Triggers:</span>
+            <span class="score-val" id="scoreBrakeEpisodes">0 → 0</span>
+          </div>
+          <div class="score-row">
+            <span class="score-label">Brake Markers Hit (±750ms):</span>
+            <span class="score-val" id="scoreBrakeMarkers">0 / 0</span>
+          </div>
+          <div class="score-row">
+            <span class="score-label">Road Bumps Rejected:</span>
+            <span class="score-val" id="scoreBumpRejected">0 / 0</span>
+          </div>
+          <div class="score-row">
+            <span class="score-label">IDLE / CRUISING Share:</span>
+            <span class="score-val" id="scoreIdleCruiseShare">—</span>
+          </div>
+          <div class="score-row">
+            <span class="score-label">BRAKING / HOLD Share:</span>
+            <span class="score-val" id="scoreBrakeHoldShare">—</span>
+          </div>
+        </div>
+
+        <!-- Cross-Parameter Validation Banner -->
+        <div class="validation-banner" id="validationBanner"></div>
+      </div>
+
+      <!-- Scrollable Parameter Controls -->
+      <div class="dock-scroll">
+        <!-- Replay Stream & Sensor Projection Overrides -->
+        <div class="param-group">
+          <div class="param-group-header">0. Replay Stream &amp; IMU Projection</div>
+          <div class="select-row">
+            <span class="param-name">Replay Speed Stream</span>
+            <select class="dock-select" id="selReplaySpeedSource">
+              <option value="RECORDED">Recorded (speed_kmh)</option>
+              <option value="BOSCH_PREFERRED">Bosch Preferred (&lt;4s age)</option>
+              <option value="BOSCH_ONLY">Bosch Only (eb21 #1)</option>
+              <option value="GPS_ONLY">GPS 1Hz Only</option>
+            </select>
+          </div>
+          <div class="select-row">
+            <span class="param-name">IMU Axis Re-Projection</span>
+            <select class="dock-select" id="selImuAxis">
+              <option value="RECORDED">Recorded (fused_accel)</option>
+              <option value="X">Raw accel_x</option>
+              <option value="Y">Raw accel_y</option>
+              <option value="Z">Raw accel_z (minus gravity)</option>
+            </select>
+          </div>
+          <div class="select-row">
+            <span class="param-name">IMU Polarity Sign</span>
+            <select class="dock-select" id="selImuSign">
+              <option value="RECORDED">Recorded Sign</option>
+              <option value="-1">-1 (Inverted)</option>
+              <option value="1">+1 (Direct)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Dynamic Sliders Container -->
+        <div id="sliderSectionsContainer" style="display: flex; flex-direction: column; gap: 12px;"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Config Sync Modal (JSON & Kotlin Round-Trip) -->
+  <div class="modal-backdrop" id="configModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">Android &amp; Web StateMachineConfig Sync</div>
+        <button class="btn btn-sm" id="btnCloseModal">Close</button>
+      </div>
+
+      <div class="modal-tabs">
+        <button class="btn btn-sm btn-primary" id="tabBtnJson">StateMachineConfig JSON (Android Sync)</button>
+        <button class="btn btn-sm" id="tabBtnKotlin">Kotlin Code Snippet (RideStateMachine.kt)</button>
+        <input type="file" id="jsonFileInput" accept=".json,application/json" style="display: none;" />
+        <button class="btn btn-sm" id="btnImportJsonFile" style="margin-left: auto;">Upload .json File</button>
+        <button class="btn btn-sm" id="btnDownloadJsonFile">Download .json File</button>
+      </div>
+
+      <p style="font-size: 11px; color: var(--text-muted);" id="modalHelpText">
+        Copy this JSON to paste into the Pretty Nights Android app (Settings → Developer / Tuning → Web Workbench Config Sync), or paste JSON exported from the phone here and click Apply JSON to Sliders.
+      </p>
+
+      <textarea class="code-textarea" id="configTextarea" spellcheck="false"></textarea>
+
+      <div class="modal-footer">
+        <span class="status-toast" id="modalStatusToast"></span>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn" id="btnCopyCode">Copy to Clipboard</button>
+          <button class="btn btn-primary" id="btnApplyJsonToSliders">Apply JSON to Sliders</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="workbench.js"></script>
+</body>
+</html>

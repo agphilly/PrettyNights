@@ -27,6 +27,7 @@ app/src/main/java/com/example/
 │   ├── TuningTelemetryCard.kt    # 150ms sampled state machine + Bosch eb21 live diagnostic card
 │   ├── TuningManualOverrideCard.kt# Stationary manual look override (IDLE, CRUISING, BRAKING + brightness)
 │   ├── TuningReplayCard.kt       # In-App Ride Replay Simulator (Recorded / Bosch eb21 / GPS speed streams)
+│   ├── TuningConfigSyncCard.kt   # JSON & Kotlin StateMachineConfig import/export bridge for Web Workbench
 │   └── TuningParameterSections.kt# Expandable parameter cards for all StateMachineConfig thresholds & fades
 ├── history/                      # Ride history, Bosch V1.0 reliability audit & CSV export
 │   ├── HistoryScreen.kt          # Expandable session cards, Bosch V1.0 report, notes dialog, marker badges
@@ -39,8 +40,9 @@ app/src/main/java/com/example/
 │   └── BoschLiveData.kt          # Bosch Live Data Interface V1.0 (eb20/eb21) BLE client & protobuf decoder
 ├── statemachine/                 # Core deterministic domain logic
 │   └── RideStateMachine.kt       # RideState, RideSample, StateMachineConfig, StateMachineTelemetry, evaluator
-├── wled/                         # WLED hardware communication
-│   └── WledController.kt         # HTTP JSON client (/json/state, /presets.json, /json/eff, /json/pal)
+├── wled/                         # WLED hardware communication & local interface binding
+│   ├── WledController.kt         # Bound HTTP JSON client (/json/state, /presets.json, /json/eff, /json/pal)
+│   └── WledNetworkTransport.kt   # Dual-mode USB-C Ethernet priority, Wi-Fi socket binding & USB Serial OTG
 ├── logging/                      # Persistent SQLite database (Room v3)
 │   └── LoggingDatabase.kt        # Entities & DAOs: sessions, state_intervals, wled_intervals, imu_samples, bosch_samples, ride_markers
 ├── safety/                       # Rider distraction prevention
@@ -60,13 +62,16 @@ app/src/main/java/com/example/
 | `PrettyNightsApp` | Root | Central dependency container: instantiates `ConfigManager`, `LoggingDatabase`, `LockController`, `WledController`, `RideOrchestrator`. | Application Process |
 | `MainActivity` | Root | Top-level host; manages bottom navigation (`HOME`, `PATTERNS`, `HISTORY`, `SETTINGS`) and sub-routing to `TUNING`. | UI Activity |
 | `RideService` | `com.example.ride` | Foreground service with persistent notification and wake lock keeping `RideOrchestrator` active when screen is off. | Foreground Service |
-| `MusicService` | `com.example.ride` | Foreground service capturing internal playback or mic audio and multicasting 84-byte WLED V2 packets at 50 Hz. | Foreground Service |
+| `MusicService` | `com.example.ride` | Foreground service capturing internal playback or mic audio and multicasting 84-byte WLED V2 packets at 50 Hz over the bound local interface. | Foreground Service |
 | `RideOrchestrator` | `com.example.ride` | Listens to 50 Hz linear accelerometer + parallel GPS & Bosch speed; ticks `RideStateMachine`; dispatches WLED calls (unless `logOnlyMode`) and logs 50 Hz telemetry + markers. | Singleton / Active Ride |
 | `BoschLiveDataClient` | `com.example.ride` | Advertises GAP Service Solicitation (`eb20`), connects to Bosch smart system eBikes, requests `ATT_MTU = 247` (`LDI-003`), subscribes to `eb21`, and decodes `com.bosch.ebike.LiveData` protobuf notifications. | Active Ride Session |
 | `RideStateMachine` | `com.example.statemachine` | Pure deterministic evaluator of ride states (`IDLE`, `CRUISING`, `BRAKING`, `BRAKING_HOLD`) and output brightness curves. | Orchestrator & Replay Simulator |
 | `TuningReplayCard` | `com.example.tuning` | Replays recorded 50 Hz `ImuSampleEntity` streams through `RideStateMachine` using live slider values and scores brake/bump marker accuracy. | Composable UI |
-| `SessionExportHelper` | `com.example.history` | Formats and shares unified 4-section CSV files (Summary, Event Markers, Raw Bosch `eb21` Notifications, 50 Hz Telemetry). | On-Demand Export |
+| `TuningConfigSyncCard` | `com.example.tuning` | Serializes and imports `StateMachineConfig` JSON and Kotlin code snippets to round-trip tuned parameters with the Web Workbench. | Composable UI |
+| `SessionExportHelper` | `com.example.history` | Formats and streams unified 4-section CSV files (Summary, Event Markers, Raw Bosch `eb21` Notifications, 50 Hz Telemetry) to disk and shares via `FileProvider`. | On-Demand Export |
 | `ConfigManager` | `com.example.config` | Reads and writes `AppConfig` to Jetpack DataStore asynchronously and emits `configFlow`. | Singleton |
-| `LoggingDatabase` | `com.example.logging` | SQLite Room database (v3) storing sessions, intervals, 50 Hz IMU+GPS+Bosch samples, raw Bosch packets, and rider markers. | Singleton |
+| `LoggingDatabase` | `com.example.logging` | SQLite Room database (v3, composite-indexed) storing sessions, intervals, 50 Hz IMU+GPS+Bosch samples, raw Bosch packets, and rider markers. | Singleton |
 | `LockController` | `com.example.safety` | Locks editing interfaces while the bike is moving (`CRUISING`, `BRAKING`, `BRAKING_HOLD`) to protect rider focus. | Singleton |
-| `WledController` | `com.example.wled` | Handles HTTP JSON client operations (`/json/state`, `/presets.json`, `/json/eff`, `/json/pal`) with exponential backoff. | Singleton |
+| `WledController` | `com.example.wled` | Handles HTTP JSON client operations (`/json/state`, `/presets.json`, `/json/eff`, `/json/pal`) over bound local sockets with fast 1x retry and RTT latency tracking. | Singleton |
+| `WledNetworkTransport` | `com.example.wled` | Monitors `ConnectivityManager` and `UsbManager` to prioritize USB-C Ethernet (`TRANSPORT_ETHERNET`), lock Wi-Fi sockets (`TRANSPORT_WIFI` without 5G fallback), and mirror JSON over USB Serial (`115200` baud). | Singleton |
+| `Web Telemetry Workbench` | `tools/telemetry-workbench/` | Standalone browser/GitHub Pages 50 Hz CSV oscilloscope (`index.html`, `styles.css`, `workbench.js`), 1:1 `JsRideStateMachine` simulator, Before/After diff highlighter, and JSON/Kotlin config bridge. | Desktop / Web Browser |

@@ -168,6 +168,13 @@ fun TuningScreen(
                     currentStateMachineConfig = sm
                 )
 
+                // 2c. Web Workbench Config Sync (JSON / Kotlin Round-Trip)
+                TuningConfigSyncCard(
+                    config = config,
+                    controlsEnabled = controlsEnabled,
+                    onConfigSave = onConfigSave
+                )
+
                 // 3. Safety Lock Notice
                 if (isLocked) {
                     Card(

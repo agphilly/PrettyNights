@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.asStateFlow
 class RideService : Service() {
 
     private val orchestrator = PrettyNightsApp.instance.orchestrator
+    private var lastNotifiedState: RideState? = null
+    private var lastNotificationTimeMs: Long = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -34,6 +36,8 @@ class RideService : Service() {
 
         // Start Foreground Notification
         val notification = createNotification("Starting Ride...", RideState.IDLE, 0f)
+        lastNotifiedState = RideState.IDLE
+        lastNotificationTimeMs = android.os.SystemClock.elapsedRealtime()
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
@@ -45,15 +49,21 @@ class RideService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        // Hook up diagnostics stream to dynamic notification updates
+        // Hook up diagnostics stream to UI StateFlows (50 Hz) and throttled system notification (1 Hz or state change)
+        val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
         orchestrator.setDiagnosticsListener { info, state, bright ->
-            val updatedNotif = createNotification(info, state, bright)
-            val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
-            manager.notify(NOTIFICATION_ID, updatedNotif)
-            
-            // Push properties to Flow for UI observing
+            // Push properties to in-memory StateFlow for UI observing
             _currentSpeedInfo.value = info
             _activeRideState.value = state
+
+            val nowMs = android.os.SystemClock.elapsedRealtime()
+            val stateChanged = state != lastNotifiedState
+            if (stateChanged || (nowMs - lastNotificationTimeMs) >= 1000L) {
+                lastNotifiedState = state
+                lastNotificationTimeMs = nowMs
+                val updatedNotif = createNotification(info, state, bright)
+                manager.notify(NOTIFICATION_ID, updatedNotif)
+            }
         }
 
         // Begin sensor fusion tick

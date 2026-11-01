@@ -130,7 +130,9 @@ class MusicService : Service() {
                     }
 
                     audioRecord?.startRecording()
-                    udpSocket = DatagramSocket()
+                    udpSocket = DatagramSocket().also { socket ->
+                        PrettyNightsApp.instance.wledController.bindUdpSocket(socket)
+                    }
 
                     // Start Capture & Stream Loop
                     runStreamLoop(sampleRate)

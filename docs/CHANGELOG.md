@@ -37,7 +37,68 @@ All notable changes, architectural milestones, and component updates for the **P
 ---
 
 ## [Unreleased]
-*No unreleased changes currently staged. Changes made after Build 6 (`v1.5.0`) will appear here until the next GitHub push.*
+*No unreleased changes currently staged. Changes made after Build 8 (`v1.7.0`) will appear here until the next GitHub push.*
+
+---
+
+## [Build 8 — v1.7.0] - 2026-11-01
+**Suggested Git Commit:** `feat(workbench): add standalone 50 Hz Web Telemetry Workbench and Android JSON/Kotlin config sync`
+
+### Added
+- **Standalone 50 Hz Web Telemetry & State-Machine Workbench (`/tools/telemetry-workbench/`)**:
+  - Built a zero-dependency browser/GitHub Pages analysis and tuning console (`index.html`, `styles.css`, `workbench.js`, `README.md`) that parses 4-section Pretty Nights CSV exports (`Session Metadata`, `IN_RIDE_EVENT_MARKERS`, `BOSCH_LIVE_DATA_V1_NOTIFICATIONS`, and `UNIFIED_50HZ_RIDE_TELEMETRY`).
+  - Ported `RideStateMachine` (`RideStateMachine.kt`) 1:1 to JavaScript (`JsRideStateMachine`) so dragging any of the 20 parameter sliders re-evaluates an entire 50 Hz ride in `< 5 ms`.
+  - Implemented a synchronized 5-track high-DPI `<canvas>` oscilloscope with mouse-wheel zoom, drag-to-pan, and a 20 ms crosshair inspection HUD:
+    1. **BEFORE (Recorded State)** ribbon (`IDLE`, `CRUISING`, `BRAKING`, `BRAKING_HOLD`).
+    2. **AFTER (Simulated State)** ribbon computed live from current slider settings.
+    3. **DIFF (`Before ≠ After`)** violet highlight band pinpointing every tick where tuning changes state behavior.
+    4. **Acceleration & Thresholds (`m/s²`)** with live `brakingDecelThreshold` overlay and shaded debounce/cooldown active windows.
+    5. **Speed (`km/h`), Bosch `eb21` & Brightness (`0–100%`)** with toggleable overlays for active speed, Bosch speed, 1 Hz GPS speed, `bosch_age_ms` sawtooth, cadence/power, and Recorded vs. Simulated brightness curves.
+  - Added **Jump-to-Event & Diff Bookmark Chips** (`ROAD_BUMP`, `LIGHT_BRAKE`, `HARD_BRAKE`, and computed `Diff #1..N` episodes) plus a built-in 30-second (`1,500`-tick) 50 Hz tricky-situations reference ride.
+- **Android Web Workbench Config Sync (`TuningConfigSyncCard.kt` & `TuningScreen.kt`)**:
+  - Added `TuningConfigSyncCard` and `StateMachineConfigSerializer` to **Settings → Developer / Tuning** so riders can copy/share `StateMachineConfig` JSON or Kotlin snippets and paste/import JSON tuned in the Web Workbench directly into Jetpack DataStore.
+
+### Key Files Touched
+- `/tools/telemetry-workbench/index.html`, `/tools/telemetry-workbench/styles.css`, `/tools/telemetry-workbench/workbench.js`, `/tools/telemetry-workbench/README.md`
+- `/app/src/main/java/com/example/tuning/TuningConfigSyncCard.kt`, `/app/src/main/java/com/example/tuning/TuningScreen.kt`
+- `/README.md`, `/docs/COMPONENT_MAP.md`, `/docs/CHANGELOG.md`, `/app/build.gradle.kts`
+
+---
+
+## [Build 7 — v1.6.0] - 2026-11-01
+**Suggested Git Commit:** `feat(wled): add dual-mode USB-C Ethernet & Wi-Fi local socket binding and official WLED documentation links`
+
+### Added
+- **Dual-Mode Physical Transport & Local Interface Binding (`WledNetworkTransport.kt`)**:
+  - Added automatic `ConnectivityManager` interface detection and socket binding supporting both rider power workflows without manual Android network switching:
+    1. **Phone Charged -> USB-C to Ethernet (`TRANSPORT_ETHERNET`)**: Automatically prioritizes wired USB-C Ethernet adapters (`eth0`/`usb0`) for zero-interference HTTP state transitions and 50 Hz UDP Audio Sync.
+    2. **Phone Charging -> Hardened Wi-Fi (`TRANSPORT_WIFI`)**: Binds `OkHttpClient` (`network.socketFactory` + `network::getAllByName`) and `MusicService` `DatagramSocket` (`network.bindSocket`) directly to the Wi-Fi interface (`wlan0`), completely blocking Android from falling back to 5G/LTE mobile data when `WLED-AP` (`4.3.2.1`) has no internet access.
+    3. **USB-C Serial Mirroring (`115200` baud)**: Added optional JSON-over-Serial (`UsbManager` bulk transfer for CP210x, CH340, FTDI, and ESP32 CDC-ACM) when a microcontroller is plugged directly into the phone's USB-C port.
+- **Settings & Home Live Transport UI (`WledNetworkSettingsCard.kt` & `HomeReadinessCard.kt`)**:
+  - Added a live **Active Link Banner** displaying the active physical transport (`USB-C Ethernet (Wired)`, `Wi-Fi Bound (No 5G Fallback)`, or `USB-C Serial`), local interface name, local IPv4 address, and round-trip ping latency (`ms`).
+  - Added one-tap host preset chips for **WLED-AP (`4.3.2.1`)**, **Wired IP (`192.168.1.50`)**, and **mDNS (`prettylights.local`)**, plus a toggle to lock WLED traffic to local Ethernet/Wi-Fi.
+- **Official WLED Knowledge Base Links (`/README.md` & `/docs/PROTOCOLS.md`)**:
+  - Linked official WLED documentation ([https://kno.wled.ge/](https://kno.wled.ge/)) for JSON API, Presets, Effects, Palettes, and Audio-Reactive UDP Sound Sync V2.
+
+### Fixed
+- **Prevented `TransactionTooLargeException` on Long Ride CSV Exports (`SessionExportHelper.kt`, `AndroidManifest.xml`, `res/xml/file_paths.xml`)**:
+  - Replaced raw `Intent.EXTRA_TEXT` string sharing (which hits Android's 1 MB Binder IPC cap on rides > 3 minutes) with buffered disk streaming (`cacheDir/exports/prettynights_session_<id>.csv`) shared via `FileProvider` (`Intent.EXTRA_STREAM`).
+- **Throttled Foreground Service Notification Updates (`RideService.kt`)**:
+  - Throttled `NotificationManager.notify()` from 50 Hz (every accelerometer tick) down to immediate state transitions (`IDLE`/`CRUISING`/`BRAKING`/`BRAKING_HOLD`) or a maximum of `1 Hz` (`1000 ms`) for speed readouts, eliminating Binder IPC spam and GC churn.
+- **Added SQLite Composite Indexes on High-Rate Telemetry Tables (`LoggingDatabase.kt`)**:
+  - Added composite `(sessionId, timestampMonotonicMs)` / `(sessionId, startTimeMonotonicMs)` indexes to `imu_samples`, `bosch_samples`, `ride_markers`, `state_intervals`, and `wled_intervals` (Room v3) to eliminate full-table scans when loading History cards or the Tuning Replay Simulator.
+
+### Key Files Touched
+- `/app/src/main/java/com/example/wled/WledNetworkTransport.kt`
+- `/app/src/main/java/com/example/wled/WledController.kt`
+- `/app/src/main/java/com/example/ride/MusicService.kt`, `/app/src/main/java/com/example/ride/RideService.kt`
+- `/app/src/main/java/com/example/history/SessionExportHelper.kt`, `/app/src/main/java/com/example/history/HistoryScreen.kt`
+- `/app/src/main/java/com/example/logging/LoggingDatabase.kt`
+- `/app/src/main/java/com/example/settings/WledNetworkSettingsCard.kt`
+- `/app/src/main/java/com/example/home/HomeReadinessCard.kt`, `/app/src/main/java/com/example/home/HomeScreen.kt`
+- `/app/src/main/java/com/example/config/ConfigManager.kt`, `/app/src/main/java/com/example/PrettyNightsApp.kt`
+- `/app/src/main/AndroidManifest.xml`, `/app/src/main/res/xml/file_paths.xml`, `/app/src/main/res/values/strings.xml`, `/app/build.gradle.kts`
+- `/README.md`, `/docs/PROTOCOLS.md`, `/docs/COMPONENT_MAP.md`, `/docs/CHANGELOG.md`
 
 ---
 
