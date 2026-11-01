@@ -70,43 +70,126 @@ class RideOrchestrator(
     private val _telemetryFlow = MutableStateFlow<StateMachineTelemetry?>(null)
     val telemetryFlow: StateFlow<StateMachineTelemetry?> = _telemetryFlow.asStateFlow()
 
+    private val _markerCountFlow = MutableStateFlow(0)
+    val markerCountFlow: StateFlow<Int> = _markerCountFlow.asStateFlow()
+
+    private val _lastMarkerLabelFlow = MutableStateFlow<String?>(null)
+    val lastMarkerLabelFlow: StateFlow<String?> = _lastMarkerLabelFlow.asStateFlow()
+
+    // Listener for Bosch Live Data Interface V1.0 packets (always logged regardless of speedSource or WLED mode)
+    private val boschPacketListener: (BoschLiveDataPacket, BoschLiveDataState) -> Unit = { packet, _ ->
+        val sessionId = activeSessionId
+        if (isRunning && sessionId != null) {
+            val fused = speedProvider as? FusedSpeedProvider
+            val gpsKmh = (fused?.gpsProvider?.speed ?: 0f) * 3.6f
+            val entity = BoschSampleEntity(
+                sessionId = sessionId,
+                timestampMonotonicMs = packet.timestampMonotonicMs,
+                negotiatedMtu = packet.negotiatedMtu,
+                payloadSizeBytes = packet.payloadSizeBytes,
+                decodeSuccess = packet.decodeSuccess,
+                presentFieldsMask = packet.presentFieldsMask,
+                speedHundredthsKmh = packet.speedHundredthsKmh,
+                speedKmh = packet.speedKmh,
+                cadenceRpm = packet.cadenceRpm,
+                riderPowerWatts = packet.riderPowerWatts,
+                ambientMilliLux = packet.ambientMilliLux,
+                ambientLux = packet.ambientLux,
+                batterySoc = packet.batterySocPercent,
+                ebikeTimeUtcSec = packet.ebikeTimeUtcSec,
+                odometerMeters = packet.odometerMeters,
+                bikeLightRaw = packet.bikeLightRaw,
+                systemLocked = packet.systemLocked,
+                chargerConnected = packet.chargerConnected,
+                lightReserveState = packet.lightReserveState,
+                diagnosisActive = packet.diagnosisProgramActive,
+                bikeNotDriving = packet.bikeNotDriving,
+                gpsSpeedKmhAtCapture = gpsKmh
+            )
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    logRepository.insertBoschSample(entity)
+                } catch (e: Exception) {
+                    Log.e("RideOrchestrator", "Failed to log Bosch V1.0 packet: ${e.message}")
+                }
+            }
+        }
+    }
+
     fun setDiagnosticsListener(listener: (String, RideState, Float) -> Unit) {
         onDiagnosticsUpdate = listener
+    }
+
+    /**
+     * Records a live in-ride event marker (e.g., HARD_BRAKE, LIGHT_BRAKE, ROAD_BUMP, BOSCH_GLITCH)
+     * during any active ride (both WLED-enabled and Log-Only rides).
+     */
+    fun recordRideMarker(markerType: String, note: String = "") {
+        val sessionId = activeSessionId ?: return
+        if (!isRunning) return
+        val nowMono = SystemClock.elapsedRealtime()
+        _markerCountFlow.value = _markerCountFlow.value + 1
+        _lastMarkerLabelFlow.value = markerType
+
+        coroutineScope.launch(Dispatchers.IO) {
+            try {
+                logRepository.insertRideMarker(
+                    RideMarkerEntity(
+                        sessionId = sessionId,
+                        timestampMonotonicMs = nowMono,
+                        markerType = markerType,
+                        note = note
+                    )
+                )
+            } catch (e: Exception) {
+                Log.e("RideOrchestrator", "Failed to insert ride marker: ${e.message}")
+            }
+        }
     }
 
     fun start() {
         if (isRunning) return
         isRunning = true
+        _markerCountFlow.value = 0
+        _lastMarkerLabelFlow.value = null
 
         configCollectionJob = coroutineScope.launch {
             configManager.configFlow.collect { config ->
                 activeConfig = config
+                PrettyNightsApp.instance.cachedSpeedSource = config.speedSource
             }
         }
 
         coroutineScope.launch {
-            // Load fresh configuration snap
+            // Load fresh configuration snapshot
             val freshConfig = configManager.getConfigSnapshot()
             activeConfig = freshConfig
             PrettyNightsApp.instance.cachedSpeedSource = freshConfig.speedSource
             val nowWallMs = System.currentTimeMillis()
             val nowMonoMs = SystemClock.elapsedRealtime()
 
-            // 1. Start speed provider
-            speedProvider.start()
-
-            // 2. Initialize Logging Session in Room
-            val sessionId = logRepository.startSession(nowWallMs, nowMonoMs)
+            // 1. Initialize Logging Session in Room BEFORE starting providers so initial packets are captured
+            val sessionId = logRepository.startSession(
+                startTimeMillis = nowWallMs,
+                startMonotonicMs = nowMonoMs,
+                logOnlyMode = freshConfig.logOnlyMode,
+                configuredSpeedSource = freshConfig.speedSource
+            )
             activeSessionId = sessionId
+
+            // 2. Register Bosch V1.0 packet listener & start both GPS and Bosch speed providers in parallel
+            val fused = speedProvider as? FusedSpeedProvider
+            fused?.boschProvider?.addPacketListener(boschPacketListener)
+            speedProvider.start()
 
             // 3. Reset State Machine
             stateMachine.getAndResetState(nowMonoMs)
-            _telemetryFlow.value = stateMachine.latestTelemetry
+            _telemetryFlow.value = enrichTelemetry(stateMachine.latestTelemetry, nowMonoMs)
 
             // 4. Log initial IDLE state interval
             logStateIntervalEntry(sessionId, RideState.IDLE, nowMonoMs, activeConfig.stateMachine.idleBrightness)
 
-            // 5. Send initial look to WLED
+            // 5. Send initial look to WLED (or record virtual WLED interval if logOnlyMode == true)
             val initialLook = activeConfig.idleLook
             sendToWled(initialLook, RideState.IDLE, activeConfig.stateMachine.idleBrightness, nowMonoMs)
             logWledIntervalEntry(sessionId, RideState.IDLE, initialLook, nowMonoMs)
@@ -116,7 +199,7 @@ class RideOrchestrator(
                 sensorManager.registerListener(this@RideOrchestrator, it, SensorManager.SENSOR_DELAY_GAME)
             }
 
-            // 7. Start Background Batch Writer for high-rate IMU datasets (every 1 second)
+            // 7. Start Background Batch Writer for high-rate IMU datasets
             startBatchWriter(sessionId)
 
             updateLock(RideState.IDLE)
@@ -133,15 +216,16 @@ class RideOrchestrator(
             // 1. Unregister Sensors
             sensorManager.unregisterListener(this@RideOrchestrator)
 
-            // 2. Stop speed provider
+            // 2. Unregister Bosch listener and stop speed providers
+            val fused = speedProvider as? FusedSpeedProvider
+            fused?.boschProvider?.removePacketListener(boschPacketListener)
             speedProvider.stop()
 
-            // 3. Close open Logging Intervals
+            // 3. Close open Logging Intervals & flush remaining IMU samples
             activeSessionId?.let { sessionId ->
                 closeStateInterval(nowMonoMs, stateMachine.lastOutputBrightness)
                 closeWledInterval(nowMonoMs)
-                
-                // Flush remaining IMU samples from buffer
+
                 val remainingSamples = mutableListOf<ImuSampleEntity>()
                 while (imuSampleBuffer.isNotEmpty()) {
                     imuSampleBuffer.poll()?.let { remainingSamples.add(it) }
@@ -167,6 +251,8 @@ class RideOrchestrator(
             lastSentState = null
             lastSentBrightness = -1f
             lastSendTimeMs = 0L
+            _markerCountFlow.value = 0
+            _lastMarkerLabelFlow.value = null
 
             // Re-trigger static idle callback
             onDiagnosticsUpdate?.invoke("Stopped", RideState.IDLE, 0f)
@@ -190,13 +276,31 @@ class RideOrchestrator(
         val projectedAcceleration = when (activeConfig.sensorAxis.uppercase()) {
             "X" -> rawX
             "Z" -> rawZ
-            else -> rawY // default forward is Y
-        } * activeConfig.sensorSign // apply calibration polarity sign
+            else -> rawY
+        } * activeConfig.sensorSign
 
-        // Retrieve speed
-        val currentSpeed = speedProvider.speed
+        // Retrieve parallel GPS + Bosch Live Data V1.0 telemetry
+        val fused = speedProvider as? FusedSpeedProvider
+        val gpsSpeedKmh = (fused?.gpsProvider?.speed ?: speedProvider.speed) * 3.6f
+        val boschLiveState = fused?.boschProvider?.liveState
+        val boschLastMs = boschLiveState?.lastUpdateMonotonicMs ?: 0L
+        val boschAgeMs = if (boschLastMs > 0L) (nowMono - boschLastMs) else -1L
+        val boschSpeedKmh = if (boschLastMs > 0L) boschLiveState?.speedKmh else null
+        val activeSource = fused?.activeSpeedSource ?: "GPS"
+        val currentSpeedKmh = speedProvider.speed * 3.6f
 
-        // Buffer IMU acceleration samples for batch database injection
+        // Tick State Machine (passing Bosch Field 25 `bike_not_driving` for idle corroboration)
+        val inputSample = RideSample(
+            timestampMs = nowMono,
+            longitudinalAccel = projectedAcceleration,
+            speedKmh = currentSpeedKmh,
+            bikeNotDriving = boschLiveState?.bikeNotDriving
+        )
+
+        val output = stateMachine.tick(inputSample)
+        _telemetryFlow.value = enrichTelemetry(stateMachine.latestTelemetry, nowMono)
+
+        // Buffer full-spectrum 50 Hz IMU + GPS + Bosch Live Data V1.0 sample (logged on EVERY ride)
         activeSessionId?.let { sessionId ->
             val sample = ImuSampleEntity(
                 sessionId = sessionId,
@@ -206,56 +310,84 @@ class RideOrchestrator(
                 accelZ = rawZ,
                 fusedAcceleration = projectedAcceleration,
                 calibratedAxis = activeConfig.sensorAxis,
-                calibratedSign = activeConfig.sensorSign
+                calibratedSign = activeConfig.sensorSign,
+                speedKmh = currentSpeedKmh,
+                gpsSpeedKmh = gpsSpeedKmh,
+                boschSpeedKmh = boschSpeedKmh,
+                boschAgeMs = boschAgeMs,
+                boschBikeNotDriving = boschLiveState?.bikeNotDriving,
+                boschCadenceRpm = boschLiveState?.cadenceRpm,
+                boschRiderPowerW = boschLiveState?.riderPowerWatts,
+                boschAmbientLux = boschLiveState?.ambientLux,
+                boschBatterySoc = boschLiveState?.batterySocPercent,
+                boschBikeLight = boschLiveState?.bikeLightRaw,
+                activeSpeedSource = activeSource,
+                stateName = output.state.name
             )
             imuSampleBuffer.offer(sample)
         }
 
-        // Tick State Machine
-        val inputSample = RideSample(
-            timestampMs = nowMono,
-            longitudinalAccel = projectedAcceleration,
-            speedKmh = currentSpeed * 3.6f
-        )
-
-        val output = stateMachine.tick(inputSample)
-        _telemetryFlow.value = stateMachine.latestTelemetry
-
         // Fan Out 1: Update safety lock state
         updateLock(output.state)
 
-        // Fan Out 2: Handle Wled State updates & Throttling (Sink)
+        // Fan Out 2: Handle WLED State updates & Throttling (Sink)
         val correspondingLook = when (output.state) {
             RideState.IDLE -> activeConfig.idleLook
             RideState.CRUISING -> activeConfig.cruisingLook
-            RideState.BRAKING, RideState.BRAKING_HOLD -> activeConfig.brakingLook
+            RideState.BRAKING -> activeConfig.brakingLook
+            RideState.BRAKING_HOLD -> activeConfig.brakingHoldLook
         }
 
-        evalAndSendWledSink(correspondingLook, output, nowMono)
-
-        // Fan Out 3: Log state transition intervals on delta
+        // Log state transition & WLED intervals BEFORE updating lastSentLook
         evalAndLogIntervals(output, correspondingLook, nowMono)
 
+        // Evaluate WLED sink (skips outbound HTTP call if logOnlyMode == true)
+        evalAndSendWledSink(correspondingLook, output, nowMono)
+
         // Broadcast stats for home screen diagnostics
-        onDiagnosticsUpdate?.invoke(output.info, output.state, output.brightness)
+        val modePrefix = if (activeConfig.logOnlyMode) "[LOG ONLY] " else ""
+        onDiagnosticsUpdate?.invoke(modePrefix + output.info, output.state, output.brightness)
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
         // Unused
     }
 
+    private fun enrichTelemetry(base: StateMachineTelemetry, nowMono: Long): StateMachineTelemetry {
+        val fused = speedProvider as? FusedSpeedProvider
+        val gpsSpeedKmh = (fused?.gpsProvider?.speed ?: speedProvider.speed) * 3.6f
+        val boschState = fused?.boschProvider?.liveState
+        val boschLastMs = boschState?.lastUpdateMonotonicMs ?: 0L
+        val boschAgeMs = if (boschLastMs > 0L) (nowMono - boschLastMs) else -1L
+        val boschSpeedKmh = if (boschLastMs > 0L) boschState?.speedKmh else null
+
+        return base.copy(
+            logOnlyMode = activeConfig.logOnlyMode,
+            activeSpeedSource = fused?.activeSpeedSource ?: "GPS",
+            gpsSpeedKmh = gpsSpeedKmh,
+            boschSpeedKmh = boschSpeedKmh,
+            boschAgeMs = boschAgeMs,
+            boschNotifications = boschState?.totalNotifications ?: 0,
+            boschDecodeErrors = boschState?.decodeErrors ?: 0,
+            boschNegotiatedMtu = boschState?.negotiatedMtu ?: 23,
+            boschBatterySoc = boschState?.batterySocPercent,
+            boschCadenceRpm = boschState?.cadenceRpm,
+            boschRiderPowerW = boschState?.riderPowerWatts,
+            boschAmbientLux = boschState?.ambientLux,
+            boschBikeLightRaw = boschState?.bikeLightRaw,
+            boschBikeNotDriving = boschState?.bikeNotDriving
+        )
+    }
+
     // --- WLED SINK THROTTLING (Section 5 & 6) ---
 
     private fun evalAndSendWledSink(look: WledLook, output: StateMachineOutput, now: Long) {
-        // Rule: A change in the state's look or ride state sends IMMEDIATELY for high responsiveness.
-        // Brightness-only changes during a continuous ramp are throttled (rate-limited).
         val stateChanged = output.state != lastSentState
         val lookChanged = look != lastSentLook
-        
-        val timeSinceLastSend = now - lastSendTimeMs
-        val brightnessDelta = Math.abs(output.brightness - lastSentBrightness)
 
-        // We rate-limit brightness-only changes to every 200ms or if there is a big jump (> 0.1)
+        val timeSinceLastSend = now - lastSendTimeMs
+        val brightnessDelta = kotlin.math.abs(output.brightness - lastSentBrightness)
+
         val shouldSendBrightnessUpdate = !stateChanged && !lookChanged &&
                 (timeSinceLastSend >= 250L || brightnessDelta >= 0.10f)
 
@@ -270,6 +402,10 @@ class RideOrchestrator(
         lastSentBrightness = brightness
         lastSendTimeMs = now
 
+        // In Log-Only mode, we skip outbound HTTP calls to the WLED controller while keeping
+        // 100% of the state machine evaluation and telemetry logging pipeline active.
+        if (activeConfig.logOnlyMode) return
+
         coroutineScope.launch(Dispatchers.IO) {
             wledController.sendState(activeConfig.wledHost, look, brightness)
         }
@@ -279,7 +415,7 @@ class RideOrchestrator(
 
     private fun evalAndLogIntervals(output: StateMachineOutput, look: WledLook, now: Long) {
         val sessionId = activeSessionId ?: return
-        
+
         // 1. Track State changes
         if (output.state != activeStateInterval?.stateName?.let { RideState.valueOf(it) }) {
             closeStateInterval(now, output.brightness)
@@ -299,7 +435,7 @@ class RideOrchestrator(
             stateName = state.name,
             startTimeMonotonicMs = now,
             startBrightness = brightness,
-            endBrightness = brightness // initialized same, overwritten on close
+            endBrightness = brightness
         )
         activeStateInterval = interval
         coroutineScope.launch {
@@ -363,7 +499,7 @@ class RideOrchestrator(
         batchLoggingJob?.cancel()
         batchLoggingJob = coroutineScope.launch {
             while (isActive) {
-                delay(1200) // batch every 1.2 seconds
+                delay(1200)
                 val batchList = mutableListOf<ImuSampleEntity>()
                 while (imuSampleBuffer.isNotEmpty()) {
                     imuSampleBuffer.poll()?.let { batchList.add(it) }

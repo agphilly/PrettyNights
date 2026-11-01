@@ -66,6 +66,7 @@ fun HomeScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val coroutineScope = rememberCoroutineScope()
+    val app = PrettyNightsApp.instance
 
     // Service running states
     val isRunning by RideService.isServiceRunning.collectAsStateWithLifecycle()
@@ -73,10 +74,24 @@ fun HomeScreen(
     val isMusicRunning by MusicService.isServiceRunning.collectAsStateWithLifecycle()
     val musicBands by MusicService.fftBands.collectAsStateWithLifecycle()
 
+    // Live markers & Bosch state
+    val markerCount by app.orchestrator.markerCountFlow.collectAsStateWithLifecycle()
+    val lastMarkerLabel by app.orchestrator.lastMarkerLabelFlow.collectAsStateWithLifecycle()
+    val boschState by app.boschSpeedProvider.liveStateFlow.collectAsStateWithLifecycle()
+
     var selectedMode by remember { mutableStateOf("STANDARD") }
     var locationGranted by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    var bluetoothGranted by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
         )
     }
     var microphoneGranted by remember {
@@ -104,7 +119,7 @@ fun HomeScreen(
         coroutineScope.launch {
             wledStatus = ScreenWledStatus.CHECKING
             val reachable = withContext(Dispatchers.IO) {
-                PrettyNightsApp.instance.wledController.ping(config.wledHost)
+                app.wledController.ping(config.wledHost)
             }
             wledStatus = if (reachable) ScreenWledStatus.REACHABLE else ScreenWledStatus.UNREACHABLE
         }
@@ -118,6 +133,15 @@ fun HomeScreen(
                     Manifest.permission.ACCESS_FINE_LOCATION
                 ) == PackageManager.PERMISSION_GRANTED
                 locationGranted = isFineGranted
+
+                bluetoothGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.BLUETOOTH_CONNECT
+                    ) == PackageManager.PERMISSION_GRANTED
+                } else {
+                    true
+                }
 
                 val isMicGranted = ContextCompat.checkSelfPermission(
                     context,
@@ -164,6 +188,11 @@ fun HomeScreen(
         val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
         locationGranted = fineGranted
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            bluetoothGranted = permissions[Manifest.permission.BLUETOOTH_CONNECT]
+                ?: (ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED)
+        }
+
         val sharedPrefs = context.getSharedPreferences("pretty_nights_prefs", Context.MODE_PRIVATE)
         sharedPrefs.edit().putBoolean("has_requested_location", true).apply()
 
@@ -206,7 +235,8 @@ fun HomeScreen(
         when (activeState) {
             RideState.IDLE -> config.idleLook
             RideState.CRUISING -> config.cruisingLook
-            RideState.BRAKING, RideState.BRAKING_HOLD -> config.brakingLook
+            RideState.BRAKING -> config.brakingLook
+            RideState.BRAKING_HOLD -> config.brakingHoldLook
         }
     }
 
@@ -217,7 +247,7 @@ fun HomeScreen(
 
     val isModeStandard = selectedMode == "STANDARD"
     val isReady = if (isModeStandard) {
-        locationGranted && wledStatus == ScreenWledStatus.REACHABLE
+        locationGranted && (config.logOnlyMode || wledStatus == ScreenWledStatus.REACHABLE)
     } else {
         microphoneGranted && wledStatus == ScreenWledStatus.REACHABLE
     }
@@ -258,13 +288,20 @@ fun HomeScreen(
                 )
             }
 
-            // 2. Mode Selector, Start/Stop Button, and Shortcuts
+            // 2. Mode Selector, Start/Stop Button, and Live Marker Bar
             HomeActionControls(
                 selectedMode = selectedMode,
                 isRunning = isRunning,
                 isMusicRunning = isMusicRunning,
                 isReady = isReady,
+                logOnlyMode = config.logOnlyMode,
+                markerCount = markerCount,
+                lastMarkerLabel = lastMarkerLabel,
                 onSelectMode = { selectedMode = it },
+                onStampMarker = { markerType ->
+                    app.orchestrator.recordRideMarker(markerType)
+                    Toast.makeText(context, "Marker stamped: $markerType", Toast.LENGTH_SHORT).show()
+                },
                 onToggleService = {
                     if (isModeStandard) {
                         if (isMusicRunning) {
@@ -296,9 +333,7 @@ fun HomeScreen(
                             }
                         }
                     }
-                },
-                onNavigateTab = onTabRequest,
-                onNavigateToTuning = onNavigateToTuning
+                }
             )
 
             // 3. Readiness Handshake & Contextual Actions
@@ -309,12 +344,19 @@ fun HomeScreen(
                 microphoneGranted = microphoneGranted,
                 permissionPermanentlyDenied = permissionPermanentlyDenied,
                 wledStatus = wledStatus,
+                boschState = boschState,
+                bluetoothGranted = bluetoothGranted,
                 context = context,
                 onGrantLocation = {
                     val req = mutableListOf(
                         Manifest.permission.ACCESS_FINE_LOCATION,
                         Manifest.permission.ACCESS_COARSE_LOCATION
                     )
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        req.add(Manifest.permission.BLUETOOTH_CONNECT)
+                        req.add(Manifest.permission.BLUETOOTH_SCAN)
+                        req.add(Manifest.permission.BLUETOOTH_ADVERTISE)
+                    }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         req.add(Manifest.permission.POST_NOTIFICATIONS)
                     }
@@ -336,6 +378,19 @@ fun HomeScreen(
                 uiColorPrimary = uiColorPrimary,
                 uiColorSecondary = uiColorSecondary
             )
+
+            // 5. Dedicated Log Only Mode (No WLED) Toggle at Bottom of Home Screen
+            if (isModeStandard) {
+                HomeLogOnlyModeCard(
+                    logOnlyMode = config.logOnlyMode,
+                    isAnyServiceRunning = isRunning || isMusicRunning,
+                    onToggleLogOnlyMode = { enabled ->
+                        coroutineScope.launch {
+                            app.configManager.updateConfig { it.copy(logOnlyMode = enabled) }
+                        }
+                    }
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
         }

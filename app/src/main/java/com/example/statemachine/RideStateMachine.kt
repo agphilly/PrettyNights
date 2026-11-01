@@ -28,7 +28,21 @@ data class StateMachineTelemetry(
     val entrySpeedKmh: Float? = null,
     val decelActive: Boolean = false,
     val inEntryFade: Boolean = false,
-    val holdFadePhase: String = "n/a"
+    val holdFadePhase: String = "n/a",
+    val logOnlyMode: Boolean = false,
+    val activeSpeedSource: String = "GPS",
+    val gpsSpeedKmh: Float = 0f,
+    val boschSpeedKmh: Float? = null,
+    val boschAgeMs: Long = -1L,
+    val boschNotifications: Int = 0,
+    val boschDecodeErrors: Int = 0,
+    val boschNegotiatedMtu: Int = 23,
+    val boschBatterySoc: Int? = null,
+    val boschCadenceRpm: Int? = null,
+    val boschRiderPowerW: Int? = null,
+    val boschAmbientLux: Float? = null,
+    val boschBikeLightRaw: Int? = null,
+    val boschBikeNotDriving: Boolean? = null
 )
 
 data class StateMachineConfig(
@@ -125,11 +139,19 @@ class RideStateMachine(private val configProvider: () -> StateMachineConfig) {
             }
             easedOffMs = null
         } else {
-            if (easedOffMs == null) {
-                easedOffMs = now
-            }
-            if (now - easedOffMs!! >= cfg.brakingCooldownMs) {
+            val wasAlreadyDebounced = decelStartMs != null && (now - decelStartMs!! >= cfg.brakingDebounceMs)
+            if (!wasAlreadyDebounced && currentState != RideState.BRAKING) {
+                // Sub-debounce spike (e.g. pothole/road bump) ended before debounce elapsed: reset immediately
                 decelStartMs = null
+                easedOffMs = null
+            } else {
+                if (easedOffMs == null) {
+                    easedOffMs = now
+                }
+                if (now - easedOffMs!! >= cfg.brakingCooldownMs) {
+                    decelStartMs = null
+                    easedOffMs = null
+                }
             }
         }
 

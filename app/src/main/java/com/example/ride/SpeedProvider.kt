@@ -9,11 +9,12 @@ import com.google.android.gms.location.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.concurrent.CopyOnWriteArrayList
 
 // --- Speed Provider Interface ---
 interface SpeedProvider {
     val speed: Float             // Current speed in m/s
-    val lastUpdateTimeMs: Long  // SystemClock.elapsedRealtime() timestamp
+    val lastUpdateTimeMs: Long   // SystemClock.elapsedRealtime() timestamp
     val isAvailable: Boolean
     fun start()
     fun stop()
@@ -52,11 +53,10 @@ class GpsSpeedProvider(
             locationCallback = object : LocationCallback() {
                 override fun onLocationResult(locationResult: LocationResult) {
                     val location = locationResult.lastLocation ?: return
-                    if (location.hasSpeed()) {
-                        speed = location.speed
+                    speed = if (location.hasSpeed()) {
+                        location.speed
                     } else {
-                        // Calculate speed from custom coordinates if speed isn't exposed
-                        speed = elapsedSpeed(location)
+                        elapsedSpeed(location)
                     }
                     lastUpdateTimeMs = SystemClock.elapsedRealtime()
                     _speedState.value = speed
@@ -81,7 +81,10 @@ class GpsSpeedProvider(
 
     override fun stop() {
         locationCallback?.let {
-            fusedLocationClient.removeLocationUpdates(it)
+            try {
+                fusedLocationClient.removeLocationUpdates(it)
+            } catch (_: Exception) {
+            }
         }
         locationCallback = null
         speed = 0f
@@ -89,7 +92,6 @@ class GpsSpeedProvider(
         isAvailable = false
     }
 
-    // Fallback speed calculation in case system speed is omitted
     private var lastLocation: Location? = null
     private var lastLocTime: Long = 0L
 
@@ -103,88 +105,152 @@ class GpsSpeedProvider(
         val distance = prev.distanceTo(location)
         val timeSec = (lastLocTime - prevTime) / 1000f
         if (timeSec <= 0.1f) return 0f
-        return (distance / timeSec).coerceIn(0f, 45f) // cap at 45 m/s (~160 km/h) for safety
+        return (distance / timeSec).coerceIn(0f, 45f)
     }
 }
 
-// --- Bosch eBike BLE Speed Provider Placeholder ---
-class BoschSpeedProvider : SpeedProvider {
+/**
+ * Authentic Bosch eBike Systems (The smart system) Live Data Interface V1.0 BLE Speed & Telemetry Provider.
+ *
+ * Connects via BLE GATT / GAP Service Solicitation (`0000eb20-eaa2-11e9-81b4-2a2ae2dbcce4`) and decodes
+ * `com.bosch.ebike.LiveData` notifications on characteristic `0000eb21-eaa2-11e9-81b4-2a2ae2dbcce4`.
+ */
+class BoschSpeedProvider(
+    private val context: Context? = null
+) : SpeedProvider {
 
-    override var speed: Float = 0f
-    override var lastUpdateTimeMs: Long = 0L
-    override var isAvailable: Boolean = true
+    private val _liveStateFlow = MutableStateFlow(BoschLiveDataState())
+    val liveStateFlow: StateFlow<BoschLiveDataState> = _liveStateFlow.asStateFlow()
 
-    private var activeSimThread: Thread? = null
+    val liveState: BoschLiveDataState
+        get() = _liveStateFlow.value
 
-    // For demonstration and future validation, Bosch eBike can be simulated
-    // with speed updates or left at 0f (representing BLE placeholder status).
-    // Let's add a clean simulator that increases speed on startup and returns to 0 when stopped
+    private val packetListeners = CopyOnWriteArrayList<(BoschLiveDataPacket, BoschLiveDataState) -> Unit>()
+
+    private var bleClient: BoschLiveDataClient? = null
+
+    override val speed: Float
+        get() = (_liveStateFlow.value.speedKmh / 3.6f)
+
+    val speedKmh: Float
+        get() = _liveStateFlow.value.speedKmh
+
+    override val lastUpdateTimeMs: Long
+        get() = _liveStateFlow.value.lastUpdateMonotonicMs
+
+    override val isAvailable: Boolean
+        get() {
+            val state = _liveStateFlow.value
+            val now = SystemClock.elapsedRealtime()
+            return state.lastUpdateMonotonicMs > 0L && (now - state.lastUpdateMonotonicMs) < BOSCH_STALE_TIMEOUT_MS
+        }
+
+    fun addPacketListener(listener: (BoschLiveDataPacket, BoschLiveDataState) -> Unit) {
+        packetListeners.add(listener)
+    }
+
+    fun removePacketListener(listener: (BoschLiveDataPacket, BoschLiveDataState) -> Unit) {
+        packetListeners.remove(listener)
+    }
+
     override fun start() {
-        isAvailable = true
-        lastUpdateTimeMs = SystemClock.elapsedRealtime()
-        
-        activeSimThread = Thread {
-            try {
-                var simSpeed = 0.0f
-                while (!Thread.currentThread().isInterrupted) {
-                    Thread.sleep(1000)
-                    // Let's simulate a bike speed fluctuating between 2.0 and 8.0 m/s
-                    simSpeed = if (simSpeed > 8f) 2f else simSpeed + 0.8f
-                    speed = simSpeed
-                    lastUpdateTimeMs = SystemClock.elapsedRealtime()
+        _liveStateFlow.value = BoschLiveDataState()
+        val appContext = context ?: return
+        if (bleClient == null) {
+            bleClient = BoschLiveDataClient(
+                context = appContext,
+                onPacketReceived = { packet ->
+                    handleDecodedPacket(packet)
+                },
+                onConnectionStateChanged = { connected, deviceName, mtu, advertising ->
+                    _liveStateFlow.value = _liveStateFlow.value.copy(
+                        isConnected = connected,
+                        connectedDeviceName = deviceName,
+                        negotiatedMtu = mtu,
+                        isAdvertisingSolicitation = advertising
+                    )
                 }
-            } catch (e: InterruptedException) {
-                // Stopped safely
-            }
-        }.apply { start() }
+            )
+        }
+        bleClient?.start()
     }
 
     override fun stop() {
-        activeSimThread?.interrupt()
-        activeSimThread = null
-        speed = 0f
-        lastUpdateTimeMs = 0L
+        bleClient?.stop()
+        _liveStateFlow.value = BoschLiveDataState()
+    }
+
+    /**
+     * Processes a raw `com.bosch.ebike.LiveData` protobuf payload (from BLE notification or test injection).
+     */
+    fun injectLiveDataPayload(
+        payload: ByteArray,
+        negotiatedMtu: Int = _liveStateFlow.value.negotiatedMtu.coerceAtLeast(BoschLiveDataSpec.REQUIRED_ATT_MTU),
+        timestampMonotonicMs: Long = SystemClock.elapsedRealtime()
+    ): BoschLiveDataPacket {
+        val packet = BoschLiveDataProtoDecoder.decode(
+            payload = payload,
+            timestampMonotonicMs = timestampMonotonicMs,
+            negotiatedMtu = negotiatedMtu
+        )
+        handleDecodedPacket(packet)
+        return packet
+    }
+
+    private fun handleDecodedPacket(packet: BoschLiveDataPacket) {
+        val updatedState = _liveStateFlow.value.mergePacket(packet)
+        _liveStateFlow.value = updatedState
+        for (listener in packetListeners) {
+            listener(packet, updatedState)
+        }
+    }
+
+    companion object {
+        const val BOSCH_STALE_TIMEOUT_MS = 4000L
     }
 }
 
-// --- Fused Speed Provider ---
+/**
+ * Fused Speed Provider.
+ *
+ * CRITICAL INVARIANT: Both `gpsProvider` and `boschProvider` ALWAYS start and record in parallel
+ * on every ride regardless of `getSourcePref()`. The `getSourcePref()` setting ONLY determines
+ * which speed stream drives the live `RideStateMachine` transitions.
+ */
 class FusedSpeedProvider(
-    private val gpsProvider: GpsSpeedProvider,
-    private val boschProvider: BoschSpeedProvider,
-    private val getSourcePref: () -> String // "GPS", "BOSCH_PREFERRED", "BOSCH_ONLY"
+    val gpsProvider: GpsSpeedProvider,
+    val boschProvider: BoschSpeedProvider,
+    private val getSourcePref: () -> String // "GPS_ONLY" / "GPS", "BOSCH_PREFERRED", "BOSCH_ONLY"
 ) : SpeedProvider {
 
-    override val speed: Float
+    val activeSpeedSource: String
         get() {
             val pref = getSourcePref()
             val now = SystemClock.elapsedRealtime()
-            
             return when (pref) {
-                "GPS" -> gpsProvider.speed
-                "BOSCH_ONLY" -> boschProvider.speed
+                "GPS", "GPS_ONLY" -> "GPS"
+                "BOSCH_ONLY" -> "BOSCH"
                 else -> { // "BOSCH_PREFERRED"
-                    val boschAgeMs = now - boschProvider.lastUpdateTimeMs
-                    // Section 4: "using Bosch while fresh, falling back to GPS when it goes stale"
-                    if (boschProvider.isAvailable && boschAgeMs < 4000L) {
-                        boschProvider.speed
-                    } else {
-                        // Bosch went stale (e.g. connection dropped) -> fall back to GPS
-                        gpsProvider.speed
-                    }
+                    val boschLast = boschProvider.lastUpdateTimeMs
+                    val boschFresh = boschLast > 0L && (now - boschLast) < BoschSpeedProvider.BOSCH_STALE_TIMEOUT_MS
+                    if (boschFresh) "BOSCH" else "GPS_FALLBACK"
                 }
+            }
+        }
+
+    override val speed: Float
+        get() {
+            return when (activeSpeedSource) {
+                "BOSCH" -> boschProvider.speed
+                else -> gpsProvider.speed
             }
         }
 
     override val lastUpdateTimeMs: Long
         get() {
-            val pref = getSourcePref()
-            return when (pref) {
-                "GPS" -> gpsProvider.lastUpdateTimeMs
-                "BOSCH_ONLY" -> boschProvider.lastUpdateTimeMs
-                else -> {
-                    val now = SystemClock.elapsedRealtime()
-                    if (now - boschProvider.lastUpdateTimeMs < 4000L) boschProvider.lastUpdateTimeMs else gpsProvider.lastUpdateTimeMs
-                }
+            return when (activeSpeedSource) {
+                "BOSCH" -> boschProvider.lastUpdateTimeMs
+                else -> gpsProvider.lastUpdateTimeMs
             }
         }
 
@@ -192,13 +258,14 @@ class FusedSpeedProvider(
         get() {
             val pref = getSourcePref()
             return when (pref) {
-                "GPS" -> gpsProvider.isAvailable
+                "GPS", "GPS_ONLY" -> gpsProvider.isAvailable
                 "BOSCH_ONLY" -> boschProvider.isAvailable
                 else -> gpsProvider.isAvailable || boschProvider.isAvailable
             }
         }
 
     override fun start() {
+        // Always start BOTH providers so 100% of GPS + Bosch Live Data V1.0 telemetry is logged
         gpsProvider.start()
         boschProvider.start()
     }

@@ -60,7 +60,7 @@ class PrettyNightsApp : Application() {
 
         // 3. Sensoring & Speed Providers
         gpsSpeedProvider = GpsSpeedProvider(this)
-        boschSpeedProvider = BoschSpeedProvider()
+        boschSpeedProvider = BoschSpeedProvider(this)
         fusedSpeedProvider = FusedSpeedProvider(gpsSpeedProvider, boschSpeedProvider) {
             cachedSpeedSource
         }

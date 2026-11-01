@@ -8,24 +8,27 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.PrettyNightsApp
-import com.example.logging.SessionEntity
-import com.example.logging.StateIntervalEntity
+import com.example.logging.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.*
 
 @Composable
@@ -35,6 +38,7 @@ fun HistoryScreen() {
     val coroutineScope = rememberCoroutineScope()
 
     var expandedSessionId by remember { mutableStateOf<Long?>(null) }
+    var editingSession by remember { mutableStateOf<SessionEntity?>(null) }
 
     Column(
         modifier = Modifier
@@ -54,12 +58,19 @@ fun HistoryScreen() {
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Ride Session Logs",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Column {
+                Text(
+                    text = "Ride Session Logs & Bosch V1.0 Analytics",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Full 50 Hz IMU, GPS & Bosch Live Data Interface V1.0 recorded on every ride",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Gray
+                )
+            }
         }
 
         if (sessions.isEmpty()) {
@@ -86,7 +97,7 @@ fun HistoryScreen() {
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                     Text(
-                        text = "Your completed ride files and telemetry statistics will be archived here.",
+                        text = "Start a ride (WLED Active or Log Only) to record 50 Hz IMU, GPS, Bosch Live Data V1.0, and event markers.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                         textAlign = TextAlign.Center,
@@ -108,6 +119,9 @@ fun HistoryScreen() {
                         onExpandRequest = {
                             expandedSessionId = if (expandedSessionId == session.id) null else session.id
                         },
+                        onEditNotesRequest = {
+                            editingSession = session
+                        },
                         onDeleteSession = {
                             coroutineScope.launch {
                                 logRepository.deleteSession(session.id)
@@ -120,8 +134,59 @@ fun HistoryScreen() {
                 }
             }
         }
-        
+
         Spacer(modifier = Modifier.height(64.dp))
+    }
+
+    // --- Edit Session Title & Post-Ride Notes Dialog ---
+    editingSession?.let { target ->
+        var titleText by remember(target.id) { mutableStateOf(target.title) }
+        var notesText by remember(target.id) { mutableStateOf(target.notes) }
+
+        AlertDialog(
+            onDismissRequest = { editingSession = null },
+            title = { Text("Label Ride Session #${target.id}", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = titleText,
+                        onValueChange = { titleText = it },
+                        label = { Text("Ride Title (e.g., Commute - Wet Cobblestones)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().testTag("input_session_title")
+                    )
+                    OutlinedTextField(
+                        value = notesText,
+                        onValueChange = { notesText = it },
+                        label = { Text("Post-Ride Notes & Bosch V1.0 Observations") },
+                        minLines = 3,
+                        maxLines = 5,
+                        modifier = Modifier.fillMaxWidth().testTag("input_session_notes")
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val sId = target.id
+                        val newTitle = titleText
+                        val newNotes = notesText
+                        editingSession = null
+                        coroutineScope.launch {
+                            logRepository.updateSessionMetadata(sId, newTitle, newNotes)
+                        }
+                    },
+                    modifier = Modifier.testTag("btn_save_session_notes")
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingSession = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -130,9 +195,13 @@ fun SessionCard(
     session: SessionEntity,
     expanded: Boolean,
     onExpandRequest: () -> Unit,
+    onEditNotesRequest: () -> Unit,
     onDeleteSession: () -> Unit
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val logRepository = PrettyNightsApp.instance.logRepository
+
     val formattedDate = remember(session.startTimeMillis) {
         val calendar = Calendar.getInstance().apply { timeInMillis = session.startTimeMillis }
         DateFormat.format("MMM dd, yyyy - hh:mm a", calendar).toString()
@@ -150,25 +219,37 @@ fun SessionCard(
         }
     }
 
-    // Load related metrics when expanded
-    var imuCount by remember { mutableStateOf(0) }
+    var imuSamples by remember { mutableStateOf<List<ImuSampleEntity>>(emptyList()) }
+    var boschSamples by remember { mutableStateOf<List<BoschSampleEntity>>(emptyList()) }
     var stateIntervals by remember { mutableStateOf<List<StateIntervalEntity>>(emptyList()) }
+    var rideMarkers by remember { mutableStateOf<List<RideMarkerEntity>>(emptyList()) }
+    var boschReport by remember { mutableStateOf<BoschSessionReliabilityReport?>(null) }
     var isLoadingMetrics by remember { mutableStateOf(false) }
 
-    LaunchedEffect(expanded) {
+    LaunchedEffect(expanded, session.id) {
         if (expanded) {
             isLoadingMetrics = true
-            // Load counts on background Dispatcher safely
-            val samples = logRepository.getImuSamples(session.id).first()
-            val intervals = logRepository.getStateIntervals(session.id).first()
-            imuCount = samples.size
-            stateIntervals = intervals
+            withContext(Dispatchers.IO) {
+                val loadedImu = logRepository.getImuSamples(session.id).first()
+                val loadedBosch = logRepository.getBoschSamples(session.id).first()
+                val loadedIntervals = logRepository.getStateIntervals(session.id).first()
+                val loadedMarkers = logRepository.getRideMarkers(session.id).first()
+                val report = SessionExportHelper.computeBoschReport(loadedImu, loadedBosch)
+
+                imuSamples = loadedImu
+                boschSamples = loadedBosch
+                stateIntervals = loadedIntervals
+                rideMarkers = loadedMarkers
+                boschReport = report
+            }
             isLoadingMetrics = false
         }
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("session_card_${session.id}"),
         colors = CardDefaults.cardColors(
             containerColor = if (expanded) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface
         ),
@@ -183,22 +264,70 @@ fun SessionCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = if (session.title.isNotBlank()) session.title else formattedDate,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(
+                                    if (session.logOnlyMode) Color(0xFF00838F) else Color(0xFF2E7D32)
+                                )
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = if (session.logOnlyMode) "LOG ONLY" else "WLED ACTIVE",
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    if (session.title.isNotBlank()) {
+                        Text(
+                            text = formattedDate,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray
+                        )
+                    }
                     Text(
-                        text = formattedDate,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Duration: $durationString",
+                        text = "Duration: $durationString • Control Source: ${session.configuredSpeedSource}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (session.notes.isNotBlank()) {
+                        Text(
+                            text = "Notes: ${session.notes}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onDeleteSession) {
+                    IconButton(
+                        onClick = onEditNotesRequest,
+                        modifier = Modifier.testTag("btn_edit_notes_${session.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EditNote,
+                            contentDescription = "Edit Session Notes",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(
+                        onClick = onDeleteSession,
+                        modifier = Modifier.testTag("btn_delete_session_${session.id}")
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "Delete Log",
@@ -219,47 +348,184 @@ fun SessionCard(
                         .fillMaxWidth()
                         .padding(horizontal = 14.dp)
                         .padding(bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
 
                     if (isLoadingMetrics) {
                         Box(modifier = Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp))
                         }
                     } else {
-                        // Core session metrics
+                        // 1. Core Session Counters
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceAround
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Telemetry Points", fontSize = 11.sp, color = Color.Gray)
-                                Text("$imuCount", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+                            MetricCounterCol("50 Hz IMU Ticks", "${imuSamples.size}")
+                            MetricCounterCol("Bosch Packets", "${boschSamples.size}")
+                            MetricCounterCol("Transitions", "${stateIntervals.size}")
+                            MetricCounterCol("Markers", "${rideMarkers.size}")
+                        }
+
+                        // 2. Action Buttons: Label Session & Export CSV
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onEditNotesRequest,
+                                modifier = Modifier.weight(1f).testTag("btn_label_ride_${session.id}")
+                            ) {
+                                Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Edit Notes", fontSize = 12.sp)
                             }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Transitions", fontSize = 11.sp, color = Color.Gray)
-                                Text("${stateIntervals.size}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+                            Button(
+                                onClick = {
+                                    val report = boschReport ?: SessionExportHelper.computeBoschReport(imuSamples, boschSamples)
+                                    coroutineScope.launch {
+                                        val csv = withContext(Dispatchers.Default) {
+                                            SessionExportHelper.buildSessionCsv(
+                                                session = session,
+                                                imuSamples = imuSamples,
+                                                boschSamples = boschSamples,
+                                                markers = rideMarkers,
+                                                report = report
+                                            )
+                                        }
+                                        SessionExportHelper.shareSessionCsv(context, session.id, csv)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f).testTag("btn_export_csv_${session.id}")
+                            ) {
+                                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Export CSV", fontSize = 12.sp)
                             }
                         }
 
-                        // State Overlap summary breakdowns (Section 11)
+                        // 3. Bosch Live Data Interface V1.0 Reliability & Telemetry Report
+                        boschReport?.let { report ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("bosch_reliability_card_${session.id}"),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.BluetoothConnected,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = "Bosch Live Data V1.0 (eb20/eb21) Report",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                        Text(
+                                            text = "Release v19",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    if (report.hasLdi003MtuWarning) {
+                                        Text(
+                                            text = "⚠ LDI-003 Warning: Negotiated ATT_MTU (${report.minNegotiatedMtu}) < 247; notifications may be truncated.",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.error,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    BoschStatRow("eb21 Notifications", "${report.totalNotifications} (${String.format("%.1f%%", report.decodeSuccessRatePercent)} valid)")
+                                    BoschStatRow("Negotiated ATT_MTU", "${report.minNegotiatedMtu} bytes (req ≥ 247)")
+                                    BoschStatRow("Freshness Uptime (<4s)", String.format("%.1f%% (%d stale drops)", report.boschFreshnessUptimePercent, report.staleFallbackEvents))
+                                    BoschStatRow("Notification Cadence", "avg ${report.avgNotificationIntervalMs} ms | max ${report.maxNotificationIntervalMs} ms")
+                                    BoschStatRow("Mean Speed Delta |Bosch - GPS|", String.format("%.2f km/h (max %.1f km/h)", report.meanSpeedDeltaKmh, report.maxBoschSpeedKmh))
+                                    BoschStatRow(
+                                        "Battery SoC (field 10) / Odo (12)",
+                                        "${report.startBatterySoc?.let { "$it%" } ?: "—"} → ${report.endBatterySoc?.let { "$it%" } ?: "—"} | ${report.latestOdometerMeters?.let { "${it}m" } ?: "—"}"
+                                    )
+                                    BoschStatRow(
+                                        "Cadence (2) / Rider Power (5)",
+                                        "${report.avgCadenceRpm?.let { "$it rpm" } ?: "—"} | avg ${report.avgRiderPowerWatts?.let { "${it}W" } ?: "—"} (peak ${report.maxRiderPowerWatts?.let { "${it}W" } ?: "—"})"
+                                    )
+                                    BoschStatRow(
+                                        "Ambient Lux (9) / Bike Light (17)",
+                                        "${report.latestAmbientLux?.let { String.format("%.1f lx", it) } ?: "—"} | ${report.latestBikeLightLabel}"
+                                    )
+                                    BoschStatRow(
+                                        "Not Driving (25) / Flags (21-24)",
+                                        "${report.bikeNotDrivingTransitions} transitions | rsv=${report.lightReserveTriggered} lck=${report.systemLockedObserved}"
+                                    )
+                                }
+                            }
+                        }
+
+                        // 4. Stamped In-Ride Event Markers
+                        if (rideMarkers.isNotEmpty()) {
+                            Text(
+                                text = "Stamped In-Ride Event Markers (${rideMarkers.size})",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            rideMarkers.forEach { marker ->
+                                val elapsedSec = (marker.timestampMonotonicMs - session.startMonotonicMs) / 1000.0
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "• ${marker.markerType}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = String.format("+%.1fs", elapsedSec),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.Gray
+                                    )
+                                }
+                            }
+                        }
+
+                        // 5. State Overlap Summary Breakdown
                         if (stateIntervals.isNotEmpty()) {
                             Text(
-                                text = "Ride Episode Breakdown (Room Interval query)",
+                                text = "Ride Episode Breakdown",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(top = 8.dp)
+                                modifier = Modifier.padding(top = 4.dp)
                             )
 
-                            // Group and display intervals
                             stateIntervals.groupBy { it.stateName }.forEach { (stateName, list) ->
                                 val totalTimeMs = list.sumOf {
                                     val end = it.endTimeMonotonicMs ?: session.endTimeMonotonicMs ?: it.startTimeMonotonicMs
                                     end - it.startTimeMonotonicMs
                                 }
                                 val seconds = totalTimeMs / 1000
-                                val avgBrightness = list.map { (it.startBrightness + it.endBrightness)/2 }.average()
+                                val avgBrightness = list.map { (it.startBrightness + it.endBrightness) / 2 }.average()
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -284,7 +550,7 @@ fun SessionCard(
                                     }
 
                                     Text(
-                                        text = "${list.size} eps | ${seconds}s | bri:${String.format("%.1f", avgBrightness)}",
+                                        text = "${list.size} eps | ${seconds}s | bri:${String.format("%.2f", avgBrightness)}",
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -295,5 +561,25 @@ fun SessionCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MetricCounterCol(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, fontSize = 11.sp, color = Color.Gray)
+        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+    }
+}
+
+@Composable
+private fun BoschStatRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+        Text(value, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
     }
 }

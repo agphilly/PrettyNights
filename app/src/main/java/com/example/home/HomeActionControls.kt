@@ -24,10 +24,12 @@ fun HomeActionControls(
     isRunning: Boolean,
     isMusicRunning: Boolean,
     isReady: Boolean,
+    logOnlyMode: Boolean = false,
+    markerCount: Int = 0,
+    lastMarkerLabel: String? = null,
     onSelectMode: (String) -> Unit,
-    onToggleService: () -> Unit,
-    onNavigateTab: (Int) -> Unit,
-    onNavigateToTuning: () -> Unit
+    onStampMarker: (String) -> Unit = {},
+    onToggleService: () -> Unit
 ) {
     val isAnyServiceRunning = isRunning || isMusicRunning
     val isModeStandard = selectedMode == "STANDARD"
@@ -100,7 +102,11 @@ fun HomeActionControls(
                 text = if (isRunning || isMusicRunning) {
                     if (isRunning) "STOP RIDE" else "STOP MUSIC"
                 } else {
-                    if (isModeStandard) "START RIDE" else "START MUSIC"
+                    if (isModeStandard) {
+                        if (logOnlyMode) "START LOG-ONLY RIDE" else "START RIDE"
+                    } else {
+                        "START MUSIC"
+                    }
                 },
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
@@ -108,90 +114,185 @@ fun HomeActionControls(
         }
     }
 
-    // --- Secondary Navigation / Setup Shortcuts ---
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("setup_shortcuts_panel"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+    // --- Live In-Ride Event Marker Bar (Active during both WLED-enabled and Log-Only rides) ---
+    if (isRunning) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("in_ride_marker_bar"),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
         ) {
-            Text(
-                text = "Setup & Calibration",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Shortcut to Patterns
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { onNavigateTab(1) }
-                        .testTag("shortcut_patterns"),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(Icons.Default.Palette, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text("Patterns", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Flag,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Stamp Live Event Marker",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
+                    Text(
+                        text = if (lastMarkerLabel != null) {
+                            "Stamped: $lastMarkerLabel ($markerCount)"
+                        } else {
+                            "Markers: $markerCount"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
 
-                // Shortcut to Calibration settings
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { onNavigateTab(3) }
-                        .testTag("shortcut_settings"),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text("Calibrate", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                    }
+                    MarkerStampButton(
+                        label = "Hard Brake",
+                        markerType = "HARD_BRAKE",
+                        color = Color(0xFFC62828),
+                        modifier = Modifier.weight(1f),
+                        onStamp = onStampMarker
+                    )
+                    MarkerStampButton(
+                        label = "Light Brake",
+                        markerType = "LIGHT_BRAKE",
+                        color = Color(0xFFEF6C00),
+                        modifier = Modifier.weight(1f),
+                        onStamp = onStampMarker
+                    )
                 }
 
-                // Shortcut to Developer / Tuning Dashboard
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { onNavigateToTuning() }
-                        .testTag("shortcut_tuning"),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(Icons.Default.Build, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text("Dev Tuning", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                    }
+                    MarkerStampButton(
+                        label = "Road Bump",
+                        markerType = "ROAD_BUMP",
+                        color = Color(0xFF6A1B9A),
+                        modifier = Modifier.weight(1f),
+                        onStamp = onStampMarker
+                    )
+                    MarkerStampButton(
+                        label = "Bosch Glitch",
+                        markerType = "BOSCH_GLITCH",
+                        color = Color(0xFF00838F),
+                        modifier = Modifier.weight(1f),
+                        onStamp = onStampMarker
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+fun HomeLogOnlyModeCard(
+    logOnlyMode: Boolean,
+    isAnyServiceRunning: Boolean,
+    onToggleLogOnlyMode: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("card_log_only_toggle"),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (logOnlyMode) {
+                MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+            }
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Analytics,
+                    contentDescription = null,
+                    tint = if (logOnlyMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "Log Only Mode (No WLED)",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (logOnlyMode) {
+                            "WLED bypassed — logging 50 Hz IMU, GPS & Bosch Live Data V1.0"
+                        } else {
+                            "Full telemetry is always logged; enable to ride without WLED hardware"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Switch(
+                checked = logOnlyMode,
+                onCheckedChange = onToggleLogOnlyMode,
+                enabled = !isAnyServiceRunning,
+                modifier = Modifier.testTag("switch_log_only_mode")
+            )
+        }
+    }
+}
+
+@Composable
+private fun MarkerStampButton(
+    label: String,
+    markerType: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    onStamp: (String) -> Unit
+) {
+    Button(
+        onClick = { onStamp(markerType) },
+        modifier = modifier
+            .height(48.dp)
+            .testTag("btn_marker_$markerType"),
+        shape = RoundedCornerShape(10.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = color),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
     }
 }

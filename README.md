@@ -1,24 +1,43 @@
 # Pretty Nights — Smart Bicycle WLED Lighting & Telemetry Controller
 
-**Pretty Nights** (`com.aistudio.prettynights.gskwqp`) is an Android cockpit and lighting orchestration application built with Kotlin and Jetpack Compose (Material 3). It transforms a smartphone into an automated bicycle lighting controller that drives **WLED (ESP8266/ESP32)** addressable LED strips using real-time GPS velocity/deceleration telemetry, 40 Hz microphone FFT audio analysis, and manual preset controls.
+**Pretty Nights** (`com.aistudio.prettynights.gskwqp`) is an Android cockpit, real-time telemetry recorder, and lighting orchestration application built with Kotlin and Jetpack Compose (Material 3). It transforms a smartphone into an automated bicycle lighting controller that drives **WLED (ESP8266/ESP32)** addressable LED strips using 50 Hz gravity-compensated IMU deceleration, **Bosch eBike Systems (The smart system) Live Data Interface V1.0** (`eb20`/`eb21`) and GPS velocity streams, 50 Hz audio-reactive FFT streaming, and manual look presets.
 
-For complete functional requirements, state-machine matrices, packet layouts, UI states, and edge-case specifications, see [**`FEATURE_SPECIFICATIONS.md`**](./FEATURE_SPECIFICATIONS.md).
+For complete functional requirements, state-machine matrices, packet layouts, UI states, and edge-case specifications, see [**`FEATURE_SPECIFICATIONS.md`**](./FEATURE_SPECIFICATIONS.md) and the [**`/docs` Engineering Suite**](./docs/ARCHITECTURE.md).
 
 ---
 
 ## Key Capabilities
 
-- **5-State Ride Mode Orchestration (`RideStateMachine` & `RideOrchestrator`)**:
-  - Evaluates 500 ms GPS telemetry and derived longitudinal acceleration (`m/s²`) with hysteresis and minimum hold timers to transition between `WaitingForGps`, `Stopped`, `Cruising`, `Slowing`, and `Braking`.
-  - Automatically triggers high-priority full-brightness (`255`) red brake overrides on segment `0` when deceleration drops below the configurable brake threshold.
-- **40 Hz Audio-Reactive Music Mode (`MusicService`)**:
-  - Captures 44.1 kHz 16-bit mono PCM audio via an `AudioRecord` foreground service (`FOREGROUND_SERVICE_TYPE_MICROPHONE`), applies a 1024-point Hann-windowed radix-2 Cooley-Tukey FFT, maps 16 logarithmic frequency channels, applies AGC and exponential smoothing, and multicasts 84-byte Little-Endian **WLED Audio Reactive V2** packets to `239.0.0.1:11988`.
-- **Manual WLED Pattern & Segment Control (`PatternsScreen` & `WledController`)**:
-  - Sends HTTP JSON payloads (`POST /json/state`) to `192.168.4.1` with network connectivity gating, 3-attempt exponential backoff (`200ms`, `400ms`, `800ms`), and live power, brightness, RGB color, and effect speed/intensity sliders.
-- **Offline Ride History & CSV Export (`HistoryScreen` & `LoggingDatabase`)**:
-  - Records ride sessions and telemetry breadcrumbs to a local SQLite **Room** database (`pretty_nights_logs.db`) and exports formatted CSV telemetry files via the Android system share sheet (`FileProvider`).
-- **Live Telemetry Tuning (`TuningScreen` & `SettingsRepository`)**:
-  - Persists speed and deceleration hysteresis thresholds in Jetpack **DataStore** (`ride_settings`) with real-time slider validation (`stopSpeedMph < resumeSpeedMph` and `brakeDecelMps2 < slowDecelMps2`).
+- **4-State Kinetic Ride Orchestration (`RideStateMachine`, `RideOrchestrator`, & `RideService`)**:
+  - Evaluates 50 Hz 3-axis linear acceleration (`Sensor.TYPE_LINEAR_ACCELERATION`) projected along the calibrated mount axis (`X`, `Y`, `Z` and polarity `+1`/`-1`) together with GPS and Bosch BLE velocity to transition deterministically between `IDLE`, `CRUISING`, `BRAKING`, and `BRAKING_HOLD`.
+  - Applies nonlinear braking gamma brightness curves (`brakingGamma`), debounce (`brakingDebounceMs`) and cooldown (`brakingCooldownMs`) filters, global brightness envelopes, and adaptive WLED HTTP rate limiting (`250 ms` ramp throttling with instant `< 50 ms` state transitions).
+- **Always-On Full Telemetry Capture & Log Only Mode (No WLED)**:
+  - Every ride session—whether **WLED Active** or **Log Only Mode (No WLED)** (toggled via the card at the bottom of the Home screen)—simultaneously records 50 Hz IMU acceleration, GPS ground speed, and Bosch Live Data Interface V1.0 BLE notifications (`0000eb21-eaa2-11e9-81b4-2a2ae2dbcce4`) to SQLite Room (`LoggingDatabase`).
+  - **Log Only Mode** bypasses WLED network checks and HTTP/UDP output so riders can capture real-world baseline telemetry on any bicycle even when WLED hardware is not installed.
+- **Bosch eBike Systems — The smart system — Live Data Interface V1.0 (`BoschLiveData.kt`)**:
+  - Implements BLE GATT client + GAP Peripheral Service Solicitation (`0000eb20-eaa2-11e9-81b4-2a2ae2dbcce4`) and wire-level protobuf decoding (`com.bosch.ebike.LiveData` fields `1, 2, 5, 9, 10, 11, 12, 17, 21–25`), including Release v19 `ATT_MTU >= 247` negotiation (`LDI-003`) and dynamic field-presence merging (`LDI-002`).
+- **Live Ground-Truth Event Markers, Session Notes & In-App Replay Simulator**:
+  - Stamp live in-ride markers (`HARD_BRAKE`, `LIGHT_BRAKE`, `ROAD_BUMP`, `BOSCH_GLITCH`) directly from the Home screen during any active ride and annotate post-ride session notes in **History**.
+  - Replay recorded 50 Hz ride sessions inside **Dev Tuning** (`TuningReplayCard.kt`) against live slider settings and selectable speed streams (`Recorded`, `Bosch eb21 (#1)`, or `GPS Only`) with automatic brake-detection and bump-rejection scoring.
+  - Export unified 4-section CSV files (`SessionExportHelper.kt`) containing session/Bosch reliability summaries, event markers, raw Bosch `eb21` notifications, and 50 Hz telemetry rows.
+- **50 Hz Audio-Reactive Music Mode (`MusicService`)**:
+  - Captures system audio playback via Android 10+ `MediaProjection` (`AudioPlaybackCaptureConfiguration`) or microphone fallback at 44.1 kHz 16-bit mono PCM, computes a 1024-point Hann-windowed radix-2 FFT across 16 logarithmic bands with software AGC, renders a live spectrum visualizer on the Home screen, and multicasts 84-byte Little-Endian **WLED Audio Sync V2** packets to `239.0.0.1:11988`.
+- **WLED Look & Pattern Studio (`PatternsScreen` & `WledController`)**:
+  - Independent per-state lighting profiles (`idleLook`, `cruisingLook`, `brakingLook`) supporting either saved WLED Preset IDs (`ps`) or custom segments (`fx` effect, `fp` palette, 3 RGB color slots, `sx` speed, `ix` intensity, and transition timing) with live controller discovery (`/presets.json`, `/json/eff`, `/json/pal`).
+
+---
+
+## Documentation Suite (`/docs`)
+
+| Document | Contents |
+| :--- | :--- |
+| [**`FEATURE_SPECIFICATIONS.md`**](./FEATURE_SPECIFICATIONS.md) | End-to-end product & engineering requirements, state formulas, packet schemas, and verification matrix. |
+| [**`docs/ARCHITECTURE.md`**](./docs/ARCHITECTURE.md) | System architecture diagram, 50 Hz sensor-to-WLED pipeline, foreground services, and persistence design. |
+| [**`docs/COMPONENT_MAP.md`**](./docs/COMPONENT_MAP.md) | Complete directory tree and file-by-file responsibilities across all 34 Kotlin source files. |
+| [**`docs/PROTOCOLS.md`**](./docs/PROTOCOLS.md) | WLED HTTP JSON API, UDP Port 11988 V2 binary layout, Bosch Live Data Interface V1.0 (`eb20`/`eb21`) protobuf spec, and IMU projection math. |
+| [**`docs/TUNING_AND_TELEMETRY.md`**](./docs/TUNING_AND_TELEMETRY.md) | 12-step field-tuning methodology, `StateMachineConfig` parameter reference table, and Replay Simulator workflow. |
+| [**`docs/TUNING_TEST_PLAN.md`**](./docs/TUNING_TEST_PLAN.md) | 4-phase real-world data collection, Bosch V1.0 reliability audit, iterative replay tuning, and CSV analysis plan. |
+| [**`docs/CHANGELOG.md`**](./docs/CHANGELOG.md) | Build-by-build release history, semantic versions, and suggested Git commit messages. |
 
 ---
 
@@ -29,7 +48,7 @@ You can synchronize this project with GitHub directly from **Google AI Studio** 
 ### Workflow A: Built-In GitHub Sync in Google AI Studio (Recommended)
 1. Click the **Settings / Project Menu** in the top navigation bar of Google AI Studio.
 2. Select **Save to GitHub** (or **Push to GitHub**).
-3. Authorize your GitHub account if prompted, select or create your target repository, choose a branch (e.g., `main`), and enter a commit message.
+3. Authorize your GitHub account if prompted, select or create your target repository, choose a branch (e.g., `main`), and enter a commit message (see [**`docs/CHANGELOG.md`**](./docs/CHANGELOG.md) for the ready-to-use commit message for the current build).
 4. After future edits in AI Studio, use **Push to GitHub** again to commit and push updated snapshots directly to your branch.
 
 ### Workflow B: Local Git & Android Studio Development
@@ -58,19 +77,20 @@ You can synchronize this project with GitHub directly from **Google AI Studio** 
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                       ANDROID DEVICE (Pretty Nights)                    │
 │                                                                         │
-│  ┌─────────────────────────┐               ┌─────────────────────────┐  │
-│  │   WledController        │               │   MusicService (DSP)    │  │
-│  │   Retrofit / OkHttp     │               │   1024-pt FFT @ 40 Hz   │  │
-│  └────────────┬────────────┘               └────────────┬────────────┘  │
-└───────────────┼─────────────────────────────────────────┼───────────────┘
-                │ HTTP POST /json/state                   │ UDP Multicast (84B)
-                │ 192.168.4.1:80 (Timeout: 1.5s)          │ 239.0.0.1:11988
-                ▼                                         ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                  ESP8266 / ESP32 WLED ACCESS POINT                      │
-│  • Segment 0: Brake Override (Solid FX 0, RGB [255, 0, 0], Bri 255)     │
-│  • Segment 1: Main Body Patterns / Ride State Presets / Audio Sync      │
-└─────────────────────────────────────────────────────────────────────────┘
+│  ┌──────────────────────┐  ┌──────────────────────┐  ┌───────────────┐  │
+│  │  RideOrchestrator    │  │  BoschLiveDataClient │  │  MusicService │  │
+│  │  50Hz IMU + GPS/BLE  │  │  BLE eb20 / eb21 V1  │  │  50Hz 16-FFT  │  │
+│  └──────────┬───────────┘  └──────────┬───────────┘  └───────┬───────┘  │
+└─────────────┼─────────────────────────┼──────────────────────┼──────────┘
+              │ HTTP POST /json/state   │ BLE GATT / GAP       │ UDP V2 (84B)
+              │ <wledHost>:80 (or       │ Service Solicit eb20 │ 239.0.0.1:11988
+              │ Log-Only Mode bypass)   │ ATT_MTU >= 247       │
+              ▼                         ▼                      ▼
+┌───────────────────────────┐ ┌──────────────────────┐ ┌──────────────────┐
+│ ESP8266 / ESP32 WLED      │ │ BOSCH SMART SYSTEM   │ │ WLED AUDIO SYNC  │
+│ • IDLE / CRUISING /       │ │ • LiveData Protobuf  │ │ • 16-Band FFT    │
+│   BRAKING / BRAKING_HOLD  │ │   Speed, Power, SoC  │ │ • AGC + Peak     │
+└───────────────────────────┘ └──────────────────────┘ └──────────────────┘
 ```
 
 ---
@@ -79,21 +99,21 @@ You can synchronize this project with GitHub directly from **Google AI Studio** 
 
 | Package / Module | Responsibility |
 | :--- | :--- |
-| `com.example.MainActivity` | Edge-to-edge M3 scaffold, bottom navigation bar, runtime permissions (`ACCESS_FINE_LOCATION`, `RECORD_AUDIO`, `POST_NOTIFICATIONS`), and screen routing. |
-| `com.example.home` | `HomeScreen` cockpit dashboard with live GPS readout, WLED connection pill, mode segmented buttons, and Music Mode sub-mode selector. |
-| `com.example.ride` | `RideStateMachine` pure hysteresis evaluator, `RideOrchestrator` foreground service (`location`), `GpsManager`, and `MusicService` (`microphone` FFT + UDP V2). |
-| `com.example.patterns` | `PatternsScreen` manual WLED power, brightness, RGB color swatches, effect cards, and speed/intensity sliders. |
-| `com.example.history` | `HistoryScreen` expandable ride session cards, summary metrics, and CSV export (`CsvExporter`). |
-| `com.example.settings` & `tuning` | `SettingsRepository` (DataStore), `SettingsScreen` (preset mapping & brake override toggle), and `TuningScreen` (threshold sliders). |
-| `com.example.wled` | `WledController`, `WledApiService` (`POST /json/state`), and Moshi models (`WledStatePayload`, `WledSegmentPayload`). |
-| `com.example.logging` | Room database (`LoggingDatabase`), `RideDao`, `RideSessionEntity`, and `RideEventEntity`. |
+| `com.example.MainActivity` & `PrettyNightsApp` | Edge-to-edge M3 scaffold, bottom navigation bar (`HOME`, `PATTERNS`, `HISTORY`, `SETTINGS` + `TUNING` route), runtime permissions, and singleton dependency container. |
+| `com.example.home` | `HomeScreen`, `HomeReadinessCard`, `HomeActionControls`, and `HomeVisualizerCard`: live speed/state readout, Start/Stop Ride CTA, in-ride event marker bar, bike lighting/FFT visualizer, and bottom Log Only Mode toggle card. |
+| `com.example.ride` | `RideOrchestrator` (50 Hz sensor coordinator, WLED rate-limiter, Room batch logger), `RideService`, `MusicService` (1024-pt FFT + UDP V2), `SpeedProvider`, and `BoschLiveData` (`eb20`/`eb21` BLE client + protobuf decoder). |
+| `com.example.statemachine` | `RideStateMachine` pure deterministic evaluator (`IDLE`, `CRUISING`, `BRAKING`, `BRAKING_HOLD`), `StateMachineConfig`, and `StateMachineTelemetry`. |
+| `com.example.patterns` | `PatternsScreen`, `StateLookCard`, and `ColorPickerSliders` for per-state WLED presets, custom segments, effects, palettes, and transitions. |
+| `com.example.history` | `HistoryScreen` and `SessionExportHelper`: expandable session cards, Bosch V1.0 reliability report, session notes editor, and 4-section CSV export. |
+| `com.example.settings` & `com.example.tuning` | `SettingsScreen` (`WledNetworkSettingsCard`, `SpeedSourceSettingsCard`, `SensorCalibrationCard`, Dev Tuning entry) and `TuningScreen` (`TuningTelemetryCard`, `TuningManualOverrideCard`, `TuningReplayCard`, `TuningParameterSections`). |
+| `com.example.config` & `com.example.logging` | `ConfigManager` (DataStore JSON persistence for `AppConfig`) and `LoggingDatabase` (Room SQLite tables for sessions, intervals, 50 Hz IMU/GPS/Bosch samples, raw Bosch `eb21` packets, and ride markers). |
+| `com.example.wled` & `com.example.safety` | `WledController` (`/json/state`, `/presets.json`, `/json/eff`, `/json/pal`) and `LockController` (motion safety lock when moving). |
 
 ---
 
 ## Building & Running Tests
 
 ### Run JVM & Robolectric Unit Tests
-Executes unit tests covering `RideStateMachine` transitions, `MusicService.packV2Packet` 84-byte Little-Endian frame layout, and `MusicService.fftInPlace` 1024-point FFT spectral concentration:
 ```bash
 gradle :app:testDebugUnitTest
 ```

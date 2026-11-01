@@ -37,7 +37,42 @@ All notable changes, architectural milestones, and component updates for the **P
 ---
 
 ## [Unreleased]
-*No unreleased changes currently staged. Changes made after Build 5 (`v1.4.0`) will appear here until the next GitHub push.*
+*No unreleased changes currently staged. Changes made after Build 6 (`v1.5.0`) will appear here until the next GitHub push.*
+
+---
+
+## [Build 6 — v1.5.0] - 2026-11-01
+**Suggested Git Commit:** `feat(telemetry): add Always-On Bosch Live Data V1.0 capture, Log-Only mode, event markers, and Tuning Replay Simulator`
+
+### Added
+- **Bosch eBike Systems — The smart system — Live Data Interface V1.0 (`BoschLiveData.kt`)**:
+  - Implemented BLE Service Solicitation (`0000eb20-eaa2-11e9-81b4-2a2ae2dbcce4`), GATT client subscription to `eb21` (`0000eb21-eaa2-11e9-81b4-2a2ae2dbcce4`), automatic `ATT_MTU = 247` negotiation to prevent Release v19 silent notification truncation (`LDI-003`), and wire-level `com.bosch.ebike.LiveData` protobuf decoding with dynamic field-presence tracking (`LDI-002`).
+- **Always-On Parallel Telemetry Capture (`SpeedProvider.kt` & `RideOrchestrator.kt`)**:
+  - Decoupled sensor capture from state-machine control so every ride (both WLED-enabled and Log-Only) simultaneously records 50 Hz IMU linear acceleration, GPS ground speed, and Bosch `eb21` notifications (`ImuSampleEntity` & `BoschSampleEntity` in Room `LoggingDatabase` v3).
+- **Log Only Mode (No WLED) (`HomeLogOnlyModeCard` & `AppConfig.logOnlyMode`)**:
+  - Added a dedicated **Log Only Mode (No WLED)** toggle card at the bottom of the Home screen (below the bike visualizer card) allowing riders to record full 50 Hz IMU, GPS, and Bosch BLE telemetry without WLED hardware connected.
+- **Live Ground-Truth Event Markers & Post-Ride Session Notes**:
+  - Added an in-ride 4-button **Stamp Live Event Marker** bar (`HARD_BRAKE`, `LIGHT_BRAKE`, `ROAD_BUMP`, `BOSCH_GLITCH`) on the Home screen and an interactive **Edit Session Notes** dialog in `HistoryScreen`.
+- **In-App Ride Replay Simulator (`TuningReplayCard.kt`) & 4-Section CSV Exporter (`SessionExportHelper.kt`)**:
+  - Added deterministic 50 Hz session replay in `TuningScreen` with selectable speed stream (`Recorded`, `Bosch eb21 (#1)`, `GPS Only`) and automated brake-detection / bump-rejection scoring.
+  - Added unified CSV export via `FileProvider` containing session/Bosch reliability headers, event markers, raw Bosch `eb21` notifications, and 50 Hz telemetry rows.
+- **Test Plan Documentation (`/docs/TUNING_TEST_PLAN.md`)**:
+  - Added a 4-phase field testing, Bosch V1.0 reliability audit, and iterative replay tuning guide.
+
+### Changed / Refactored
+- Streamlined `HomeScreen` layout by placing `HomeLogOnlyModeCard` at the bottom of the page and removing the duplicate Setup & Calibration shortcut panel (navigation to Patterns/Settings uses the bottom bar, and Developer Tuning is accessed from Settings).
+- Updated `/README.md`, `/FEATURE_SPECIFICATIONS.md`, `/docs/ARCHITECTURE.md`, `/docs/COMPONENT_MAP.md`, `/docs/PROTOCOLS.md`, and `/docs/TUNING_AND_TELEMETRY.md` to synchronize all documentation with Build 6 (`v1.5.0`).
+- Incremented `/app/build.gradle.kts` to `versionCode = 6` and `versionName = "1.5.0"`.
+
+### Key Files Touched
+- `/app/src/main/java/com/example/ride/BoschLiveData.kt`
+- `/app/src/main/java/com/example/ride/SpeedProvider.kt`
+- `/app/src/main/java/com/example/ride/RideOrchestrator.kt`
+- `/app/src/main/java/com/example/logging/LoggingDatabase.kt`
+- `/app/src/main/java/com/example/home/HomeScreen.kt`, `/app/src/main/java/com/example/home/HomeActionControls.kt`, `/app/src/main/java/com/example/home/HomeReadinessCard.kt`
+- `/app/src/main/java/com/example/history/HistoryScreen.kt`, `/app/src/main/java/com/example/history/SessionExportHelper.kt`
+- `/app/src/main/java/com/example/tuning/TuningScreen.kt`, `/app/src/main/java/com/example/tuning/TuningReplayCard.kt`, `/app/src/main/java/com/example/tuning/TuningTelemetryCard.kt`
+- `/README.md`, `/FEATURE_SPECIFICATIONS.md`, `/docs/*`, `/app/build.gradle.kts`
 
 ---
 

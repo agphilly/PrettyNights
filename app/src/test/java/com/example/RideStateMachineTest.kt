@@ -259,4 +259,166 @@ class RideStateMachineTest {
         assertEquals(0.toByte(), buffer.get(51))
         assertEquals(detectedFreq, buffer.getDouble(76), 0.01)
     }
+
+    @Test
+    fun testBoschLiveDataV1ProtoDecoderAllTwelveFieldsAndLdi002Merging() {
+        // 1. Encode a full com.bosch.ebike.LiveData packet with all 12 fields from the V1.0 (Release v19) spec
+        val payload = com.example.ride.BoschLiveDataProtoDecoder.encode(
+            speedHundredthsKmh = 2485,           // Field 1: 24.85 km/h
+            cadenceRpm = 78,                     // Field 2: 78 rpm
+            riderPowerWatts = 215,               // Field 5: 215 W
+            ambientMilliLux = 125400L,           // Field 9: 125.4 lux
+            batterySocPercent = 84,              // Field 10: 84 %
+            ebikeTimeUtcSec = 1777593600L,       // Field 11: UTC seconds
+            odometerMeters = 452310L,            // Field 12: 452,310 m
+            bikeLightRaw = 2,                    // Field 17: LIGHT_STATE_ON (2)
+            systemLocked = false,                // Field 21
+            chargerConnected = false,            // Field 22
+            lightReserveState = false,           // Field 23
+            diagnosisProgramActive = false,      // Field 24
+            bikeNotDriving = false               // Field 25: false = moving
+        )
+
+        val decoded = com.example.ride.BoschLiveDataProtoDecoder.decode(
+            payload = payload,
+            timestampMonotonicMs = 1000L,
+            negotiatedMtu = 247
+        )
+
+        assertTrue(decoded.decodeSuccess)
+        assertEquals(2485, decoded.speedHundredthsKmh)
+        assertEquals(24.85f, decoded.speedKmh ?: 0f, 0.001f)
+        assertEquals(78, decoded.cadenceRpm)
+        assertEquals(215, decoded.riderPowerWatts)
+        assertEquals(125.4f, decoded.ambientLux ?: 0f, 0.001f)
+        assertEquals(84, decoded.batterySocPercent)
+        assertEquals(1777593600L, decoded.ebikeTimeUtcSec)
+        assertEquals(452310L, decoded.odometerMeters)
+        assertEquals(2, decoded.bikeLightRaw)
+        assertEquals(false, decoded.systemLocked)
+        assertEquals(false, decoded.chargerConnected)
+        assertEquals(false, decoded.lightReserveState)
+        assertEquals(false, decoded.diagnosisProgramActive)
+        assertEquals(false, decoded.bikeNotDriving)
+
+        // 2. Merge into BoschLiveDataState, then apply a partial notification (LDI-002) that only updates speed & bike_not_driving
+        val initialState = com.example.ride.BoschLiveDataState().mergePacket(decoded)
+        assertEquals(24.85f, initialState.speedKmh, 0.001f)
+        assertEquals(84, initialState.batterySocPercent)
+        assertEquals(false, initialState.bikeNotDriving)
+
+        val partialPayload = com.example.ride.BoschLiveDataProtoDecoder.encode(
+            speedHundredthsKmh = 0,
+            bikeNotDriving = true
+        )
+        val partialPacket = com.example.ride.BoschLiveDataProtoDecoder.decode(
+            payload = partialPayload,
+            timestampMonotonicMs = 1300L,
+            negotiatedMtu = 247
+        )
+        val mergedState = initialState.mergePacket(partialPacket)
+
+        assertEquals(0.0f, mergedState.speedKmh, 0.001f)
+        assertEquals(true, mergedState.bikeNotDriving)
+        // Unchanged omitted fields must remain preserved from previous notifications
+        assertEquals(84, mergedState.batterySocPercent)
+        assertEquals(215, mergedState.riderPowerWatts)
+        assertEquals(2, mergedState.bikeLightRaw)
+
+        // 3. Verify LDI-003 truncated varint detection (e.g., ATT_MTU < 247 truncating mid-varint)
+        val truncatedPayload = payload.copyOfRange(0, payload.size - 1).apply {
+            this[this.size - 1] = 0x80.toByte() // dangling continuation bit
+        }
+        val truncatedPacket = com.example.ride.BoschLiveDataProtoDecoder.decode(
+            payload = truncatedPayload,
+            timestampMonotonicMs = 1500L,
+            negotiatedMtu = 23
+        )
+        assertFalse(truncatedPacket.decodeSuccess)
+    }
+
+    @Test
+    fun testTuningReplaySimulatorWithMarkersAndBoschStream() {
+        val samples = mutableListOf<com.example.logging.ImuSampleEntity>()
+        // 0..1000ms: Cruising at 20 km/h
+        for (t in 0L..1000L step 20L) {
+            samples.add(
+                com.example.logging.ImuSampleEntity(
+                    sessionId = 1L,
+                    timestampMonotonicMs = t,
+                    accelX = 0f,
+                    accelY = 0f,
+                    accelZ = 0f,
+                    fusedAcceleration = 0f,
+                    calibratedAxis = "Y",
+                    calibratedSign = -1,
+                    speedKmh = 20f,
+                    gpsSpeedKmh = 20f,
+                    boschSpeedKmh = 20.5f,
+                    boschAgeMs = 100L,
+                    boschBikeNotDriving = false,
+                    stateName = "CRUISING"
+                )
+            )
+        }
+        // 1020..1400ms: Hard braking (-3.0 m/s²) -> exceeds 180ms debounce
+        for (t in 1020L..1400L step 20L) {
+            samples.add(
+                com.example.logging.ImuSampleEntity(
+                    sessionId = 1L,
+                    timestampMonotonicMs = t,
+                    accelX = 0f,
+                    accelY = 3.0f,
+                    accelZ = 0f,
+                    fusedAcceleration = -3.0f,
+                    calibratedAxis = "Y",
+                    calibratedSign = -1,
+                    speedKmh = 12f,
+                    gpsSpeedKmh = 12f,
+                    boschSpeedKmh = 11.5f,
+                    boschAgeMs = 100L,
+                    boschBikeNotDriving = false,
+                    stateName = "BRAKING"
+                )
+            )
+        }
+        // 2000ms: Brief 40ms road bump (-2.5 m/s²) -> shorter than 180ms debounce, should be rejected
+        for (t in 1420L..2500L step 20L) {
+            val isBumpSpike = t == 2000L || t == 2020L
+            samples.add(
+                com.example.logging.ImuSampleEntity(
+                    sessionId = 1L,
+                    timestampMonotonicMs = t,
+                    accelX = 0f,
+                    accelY = 0f,
+                    accelZ = 0f,
+                    fusedAcceleration = if (isBumpSpike) -2.5f else 0f,
+                    calibratedAxis = "Y",
+                    calibratedSign = -1,
+                    speedKmh = 15f,
+                    gpsSpeedKmh = 15f,
+                    boschSpeedKmh = 15f,
+                    boschAgeMs = 100L,
+                    boschBikeNotDriving = false,
+                    stateName = "CRUISING"
+                )
+            )
+        }
+
+        val markers = listOf(
+            com.example.logging.RideMarkerEntity(sessionId = 1L, timestampMonotonicMs = 1200L, markerType = "HARD_BRAKE"),
+            com.example.logging.RideMarkerEntity(sessionId = 1L, timestampMonotonicMs = 2020L, markerType = "ROAD_BUMP")
+        )
+
+        val result = com.example.tuning.RideReplaySimulator.runReplay(
+            imuSamples = samples,
+            markers = markers,
+            config = StateMachineConfig(),
+            replaySpeedSource = "BOSCH"
+        )
+
+        assertEquals(1, result.simulatedBrakeEpisodes)
+        assertEquals(1, result.brakeMarkersDetected)
+        assertEquals(1, result.roadBumpMarkersRejected)
+    }
 }

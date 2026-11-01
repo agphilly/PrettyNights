@@ -163,6 +163,11 @@ fun TuningScreen(
                     }
                 )
 
+                // 2b. In-App Ride Replay Simulator (Recorded 50 Hz IMU + GPS + Bosch Live Data V1.0)
+                TuningReplayCard(
+                    currentStateMachineConfig = sm
+                )
+
                 // 3. Safety Lock Notice
                 if (isLocked) {
                     Card(

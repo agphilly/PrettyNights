@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.config.AppConfig
+import com.example.ride.BoschLiveDataState
 
 @Composable
 fun HomeReadinessCard(
@@ -30,11 +31,16 @@ fun HomeReadinessCard(
     microphoneGranted: Boolean,
     permissionPermanentlyDenied: Boolean,
     wledStatus: ScreenWledStatus,
+    boschState: BoschLiveDataState = BoschLiveDataState(),
+    bluetoothGranted: Boolean = true,
     context: Context,
     onGrantLocation: () -> Unit,
     onGrantMic: () -> Unit,
     onCheckWled: () -> Unit
 ) {
+    val isModeStandard = selectedMode == "STANDARD"
+    val wledBypassed = isModeStandard && config.logOnlyMode
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -56,7 +62,7 @@ fun HomeReadinessCard(
             )
 
             // Phone sensors / Microphone indicator
-            if (selectedMode == "STANDARD") {
+            if (isModeStandard) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -85,7 +91,7 @@ fun HomeReadinessCard(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = if (locationGranted) "Ready to measure speed" else "Access required for ride analytics",
+                                text = if (locationGranted) "Ready to measure 50 Hz IMU & GPS speed" else "Access required for ride analytics",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color.Gray
                             )
@@ -101,6 +107,73 @@ fun HomeReadinessCard(
                     ) {
                         Text(
                             text = if (locationGranted) "PASS" else "FAIL",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+
+                // Bosch Live Data V1.0 BLE Telemetry indicator (always recorded alongside GPS)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Bluetooth,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                "Bosch Live Data V1.0 (eb20/eb21)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = when {
+                                    boschState.isConnected -> "Connected (${boschState.connectedDeviceName ?: "eBike"}, MTU=${boschState.negotiatedMtu})"
+                                    !bluetoothGranted -> "Always logged when BLE permitted; GPS active"
+                                    else -> "Always logged alongside GPS (Service Solicitation eb20)"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                when {
+                                    boschState.isConnected -> Color(0xFF1B5E20)
+                                    bluetoothGranted -> Color(0xFF0277BD)
+                                    else -> Color(0xFF616161)
+                                }
+                            )
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = when {
+                                boschState.isConnected -> "LIVE"
+                                bluetoothGranted -> "READY"
+                                else -> "STANDBY"
+                            },
                             color = Color.White,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
@@ -176,7 +249,7 @@ fun HomeReadinessCard(
                             .size(36.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Wifi,
@@ -189,10 +262,14 @@ fun HomeReadinessCard(
                     Column {
                         Text("WLED controller", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                         Text(
-                            text = when (wledStatus) {
-                                ScreenWledStatus.CHECKING -> "Checking ${config.wledHost}..."
-                                ScreenWledStatus.REACHABLE -> "Connected to ${config.wledHost}"
-                                else -> "Offline or unavailable at ${config.wledHost}"
+                            text = if (wledBypassed) {
+                                "Bypassed in Log Only Mode (WLED not required)"
+                            } else {
+                                when (wledStatus) {
+                                    ScreenWledStatus.CHECKING -> "Checking ${config.wledHost}..."
+                                    ScreenWledStatus.REACHABLE -> "Connected to ${config.wledHost}"
+                                    else -> "Offline or unavailable at ${config.wledHost}"
+                                }
                             },
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.Gray
@@ -205,19 +282,27 @@ fun HomeReadinessCard(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .background(
-                            when (wledStatus) {
-                                ScreenWledStatus.REACHABLE -> Color(0xFF1B5E20)
-                                ScreenWledStatus.CHECKING -> Color(0xFFE65100)
-                                else -> Color(0xFFC62828)
+                            if (wledBypassed) {
+                                Color(0xFF1B5E20)
+                            } else {
+                                when (wledStatus) {
+                                    ScreenWledStatus.REACHABLE -> Color(0xFF1B5E20)
+                                    ScreenWledStatus.CHECKING -> Color(0xFFE65100)
+                                    else -> Color(0xFFC62828)
+                                }
                             }
                         )
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = when (wledStatus) {
-                            ScreenWledStatus.REACHABLE -> "PASS"
-                            ScreenWledStatus.CHECKING -> "PING"
-                            else -> "FAIL"
+                        text = if (wledBypassed) {
+                            "LOG ONLY"
+                        } else {
+                            when (wledStatus) {
+                                ScreenWledStatus.REACHABLE -> "PASS"
+                                ScreenWledStatus.CHECKING -> "PING"
+                                else -> "FAIL"
+                            }
                         },
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
@@ -229,7 +314,6 @@ fun HomeReadinessCard(
     }
 
     // Contextual Action Area
-    val isModeStandard = selectedMode == "STANDARD"
     val currentPermissionGranted = if (isModeStandard) locationGranted else microphoneGranted
 
     Box(
@@ -247,7 +331,6 @@ fun HomeReadinessCard(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (permissionPermanentlyDenied) {
-                        // Blocked / Settings Redirect Case
                         Card(
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
@@ -299,7 +382,6 @@ fun HomeReadinessCard(
                             Text("Open Settings", fontWeight = FontWeight.Bold)
                         }
                     } else {
-                        // Rationale & standard Grant location flow
                         Card(
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
@@ -379,8 +461,8 @@ fun HomeReadinessCard(
                     }
                 }
             }
-        } else if (wledStatus != ScreenWledStatus.REACHABLE) {
-            // Permission IS GRANTED, but WLED unreachable
+        } else if (!wledBypassed && wledStatus != ScreenWledStatus.REACHABLE) {
+            // Permission IS GRANTED, but WLED unreachable (and not in Log-Only mode)
             Button(
                 onClick = onCheckWled,
                 enabled = wledStatus != ScreenWledStatus.CHECKING,
@@ -402,7 +484,7 @@ fun HomeReadinessCard(
                 }
             }
         } else {
-            // Both GRANTED and REACHABLE -> Ready
+            // Ready (either WLED reachable OR Log-Only mode active)
             Card(
                 colors = CardDefaults.cardColors(
                     containerColor = Color(0xFF1B5E20).copy(alpha = 0.15f)
@@ -418,7 +500,11 @@ fun HomeReadinessCard(
                     Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF2E7D32))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isModeStandard) "Systems operating normally. Ready to ride!" else "Systems operating normally. Ready to stream!",
+                        text = when {
+                            wledBypassed -> "Log Only Mode ready — recording IMU, GPS & Bosch Live Data V1.0!"
+                            isModeStandard -> "Systems operating normally. Ready to ride!"
+                            else -> "Systems operating normally. Ready to stream!"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF2E7D32)

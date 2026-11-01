@@ -28,6 +28,7 @@ data class WledLook(
 data class AppConfig(
     val wledHost: String = "prettylights.local",
     val audioSyncPort: Int = 11988,
+    val logOnlyMode: Boolean = false,
     val speedSource: String = "GPS_ONLY", // "GPS_ONLY", "BOSCH_PREFERRED", "BOSCH_ONLY"
     val sensorAxis: String = "Y", // "X", "Y", "Z"
     val sensorSign: Int = -1, // 1 or -1
