@@ -23,18 +23,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.config.AppConfig
+import com.example.config.AppJson
 import com.example.statemachine.StateMachineConfig
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import java.util.Locale
 
 object StateMachineConfigSerializer {
-    private val moshi: Moshi = Moshi.Builder()
-        .addLast(KotlinJsonAdapterFactory())
-        .build()
-
-    private val smAdapter = moshi.adapter(StateMachineConfig::class.java).indent("  ")
-    private val appAdapter = moshi.adapter(AppConfig::class.java)
+    private val smAdapter = AppJson.moshi.adapter(StateMachineConfig::class.java).indent("  ")
+    private val appAdapter = AppJson.moshi.adapter(AppConfig::class.java)
 
     fun toJson(config: StateMachineConfig): String {
         return smAdapter.toJson(config)

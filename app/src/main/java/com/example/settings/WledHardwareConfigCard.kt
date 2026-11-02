@@ -24,23 +24,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.PrettyNightsApp
 import com.example.config.AppConfig
 import com.example.config.Io13PinRole
 import com.example.config.WledHardwareConfig
 import com.example.wled.WledHardwareLiveInfo
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 @Composable
 fun WledHardwareConfigCard(
     config: AppConfig,
     isLocked: Boolean,
+    liveInfo: WledHardwareLiveInfo? = null,
+    isSyncing: Boolean = false,
+    syncStatusMessage: String? = null,
+    syncIsError: Boolean = false,
+    onReadHardwareInfo: () -> Unit = {},
+    onPushHardwareAndSegments: (WledHardwareConfig) -> Unit = {},
     onConfigSave: (AppConfig) -> Unit
 ) {
-    val coroutineScope = rememberCoroutineScope()
     val hw = config.hardwareConfig
 
     var ch1CountText by remember(hw.ch1LedCount) { mutableStateOf(hw.ch1LedCount.toString()) }
@@ -48,11 +49,6 @@ fun WledHardwareConfigCard(
     var ch3CountText by remember(hw.ch3LedCount) { mutableStateOf(hw.ch3LedCount.toString()) }
     var ch1NameText by remember(hw.ch1ZoneName) { mutableStateOf(hw.ch1ZoneName) }
     var ch2NameText by remember(hw.ch2ZoneName) { mutableStateOf(hw.ch2ZoneName) }
-
-    var liveInfo by remember { mutableStateOf<WledHardwareLiveInfo?>(null) }
-    var isSyncing by remember { mutableStateOf(false) }
-    var syncStatusMessage by remember { mutableStateOf<String?>(null) }
-    var syncIsError by remember { mutableStateOf(false) }
 
     fun saveHw(updated: WledHardwareConfig) {
         onConfigSave(config.copy(hardwareConfig = updated))
@@ -63,7 +59,7 @@ fun WledHardwareConfigCard(
     val seg1Start = seg0Stop
     val seg1Stop = if (hw.ch2Enabled) seg1Start + hw.ch2LedCount.coerceAtLeast(1) else seg1Start
     val seg2Start = seg1Stop
-    val seg2Stop = if (Io13PinRole.fromWireValue(hw.io13Role) == Io13PinRole.STRIP_CH3) seg2Start + hw.ch3LedCount.coerceAtLeast(1) else seg2Start
+    val seg2Stop = if (hw.io13Role == Io13PinRole.STRIP_CH3) seg2Start + hw.ch3LedCount.coerceAtLeast(1) else seg2Start
 
     Card(
         modifier = Modifier
@@ -106,25 +102,7 @@ fun WledHardwareConfigCard(
                 }
 
                 OutlinedButton(
-                    onClick = {
-                        isSyncing = true
-                        syncStatusMessage = "Reading /json/info..."
-                        syncIsError = false
-                        coroutineScope.launch(Dispatchers.IO) {
-                            val info = PrettyNightsApp.instance.wledController.fetchHardwareInfo(config.wledHost)
-                            withContext(Dispatchers.Main) {
-                                isSyncing = false
-                                liveInfo = info
-                                if (info != null) {
-                                    syncIsError = false
-                                    syncStatusMessage = "Connected: WLED v${info.version} (${info.ledCount} LEDs, ${info.maxPowerMa} mA cap)"
-                                } else {
-                                    syncIsError = true
-                                    syncStatusMessage = "Could not read /json/info from ${config.wledHost}"
-                                }
-                            }
-                        }
-                    },
+                    onClick = onReadHardwareInfo,
                     enabled = !isLocked && !isSyncing,
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                     modifier = Modifier
@@ -464,7 +442,7 @@ fun WledHardwareConfigCard(
                 ) {
                     Io13PinRole.entries.forEach { role ->
                         val roleKey = role.wireValue
-                        val selected = Io13PinRole.fromWireValue(hw.io13Role) == role
+                        val selected = hw.io13Role == role
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -474,7 +452,7 @@ fun WledHardwareConfigCard(
                                     else MaterialTheme.colorScheme.surface
                                 )
                                 .clickable(enabled = !isLocked) {
-                                    saveHw(hw.copy(io13Role = roleKey))
+                                    saveHw(hw.copy(io13Role = role))
                                 }
                                 .padding(vertical = 8.dp)
                                 .testTag("btn_io13_role_$roleKey"),
@@ -490,7 +468,7 @@ fun WledHardwareConfigCard(
                     }
                 }
 
-                if (Io13PinRole.fromWireValue(hw.io13Role) == Io13PinRole.STRIP_CH3) {
+                if (hw.io13Role == Io13PinRole.STRIP_CH3) {
                     OutlinedTextField(
                         value = ch3CountText,
                         onValueChange = { text ->
@@ -539,7 +517,7 @@ fun WledHardwareConfigCard(
                         fontSize = 11.sp
                     )
                 }
-                if (Io13PinRole.fromWireValue(hw.io13Role) == Io13PinRole.STRIP_CH3) {
+                if (hw.io13Role == Io13PinRole.STRIP_CH3) {
                     Text(
                         text = "• Seg 2 (Aux IO13): index $seg2Start .. $seg2Stop (${hw.ch3LedCount} LEDs on GPIO 13)",
                         fontFamily = FontFamily.Monospace,
@@ -550,29 +528,7 @@ fun WledHardwareConfigCard(
 
             // PUSH TO CONTROLLER CTA
             Button(
-                onClick = {
-                    isSyncing = true
-                    syncStatusMessage = "Pushing /json/cfg & /json/state to ${config.wledHost}..."
-                    syncIsError = false
-                    coroutineScope.launch(Dispatchers.IO) {
-                        val controller = PrettyNightsApp.instance.wledController
-                        val ok = controller.pushHardwareAndSegments(config.wledHost, hw)
-                        val refreshedInfo = if (ok) controller.fetchHardwareInfo(config.wledHost) else null
-                        withContext(Dispatchers.Main) {
-                            isSyncing = false
-                            if (refreshedInfo != null) {
-                                liveInfo = refreshedInfo
-                            }
-                            if (ok) {
-                                syncIsError = false
-                                syncStatusMessage = "Provisioned GPIO 16/2/13, ${hw.maxCurrentMa}mA limiter & segments on WLED!"
-                            } else {
-                                syncIsError = true
-                                syncStatusMessage = "WLED unreachable at ${config.wledHost} — settings saved locally."
-                            }
-                        }
-                    }
-                },
+                onClick = { onPushHardwareAndSegments(hw) },
                 enabled = !isLocked && !isSyncing,
                 modifier = Modifier
                     .fillMaxWidth()

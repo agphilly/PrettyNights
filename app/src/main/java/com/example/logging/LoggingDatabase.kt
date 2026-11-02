@@ -2,7 +2,26 @@ package com.example.logging
 
 import android.content.Context
 import androidx.room.*
+import com.example.config.RideMarkerType
+import com.example.config.SpeedSourceMode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+
+// --- TYPE CONVERTERS ---
+
+class EnumConverters {
+    @TypeConverter
+    fun speedSourceToStr(v: SpeedSourceMode): String = v.wireValue
+
+    @TypeConverter
+    fun strToSpeedSource(s: String): SpeedSourceMode = SpeedSourceMode.fromWireValue(s)
+
+    @TypeConverter
+    fun markerToStr(v: RideMarkerType?): String? = v?.wireValue
+
+    @TypeConverter
+    fun strToMarker(s: String?): RideMarkerType? = RideMarkerType.fromWireValueOrNull(s)
+}
 
 // --- ENTITIES ---
 
@@ -16,7 +35,7 @@ data class SessionEntity(
     val title: String = "",
     val notes: String = "",
     val logOnlyMode: Boolean = false,
-    val configuredSpeedSource: String = "GPS_ONLY"
+    val configuredSpeedSource: SpeedSourceMode = SpeedSourceMode.GPS_ONLY
 )
 
 @Entity(
@@ -112,7 +131,7 @@ data class BoschSampleEntity(
 )
 
 /**
- * Live in-ride event marker stamped by the rider (e.g., HARD_BRAKE, LIGHT_BRAKE, ROAD_BUMP, BOSCH_GLITCH).
+ * Live in-ride event marker stamped by the rider using RideMarkerType.
  */
 @Entity(
     tableName = "ride_markers",
@@ -122,7 +141,7 @@ data class RideMarkerEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val sessionId: Long,
     val timestampMonotonicMs: Long,
-    val markerType: String,
+    val markerType: RideMarkerType?,
     val note: String = ""
 )
 
@@ -250,6 +269,7 @@ interface RideMarkerDao {
     version = 3,
     exportSchema = false
 )
+@TypeConverters(EnumConverters::class)
 abstract class LoggingDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
     abstract fun stateIntervalDao(): StateIntervalDao
@@ -280,15 +300,15 @@ abstract class LoggingDatabase : RoomDatabase() {
 
 // --- REPOSITORY ---
 
-class LogRepository(private val db: LoggingDatabase) {
-    val allSessions: Flow<List<SessionEntity>> = db.sessionDao().getAllSessions()
+open class LogRepository(private val db: LoggingDatabase? = null) {
+    open val allSessions: Flow<List<SessionEntity>> = db?.sessionDao()?.getAllSessions() ?: emptyFlow()
 
-    suspend fun startSession(
+    open suspend fun startSession(
         startTimeMillis: Long,
         startMonotonicMs: Long,
         weather: String? = null,
         logOnlyMode: Boolean = false,
-        configuredSpeedSource: String = "GPS_ONLY"
+        configuredSpeedSource: SpeedSourceMode = SpeedSourceMode.GPS_ONLY
     ): Long {
         val session = SessionEntity(
             startTimeMillis = startTimeMillis,
@@ -297,81 +317,84 @@ class LogRepository(private val db: LoggingDatabase) {
             logOnlyMode = logOnlyMode,
             configuredSpeedSource = configuredSpeedSource
         )
-        return db.sessionDao().insertSession(session)
+        return db?.sessionDao()?.insertSession(session) ?: 0L
     }
 
-    suspend fun endSession(sessionId: Long, endMonotonicMs: Long) {
-        val session = db.sessionDao().getSessionById(sessionId)
+    open suspend fun endSession(sessionId: Long, endMonotonicMs: Long) {
+        val dao = db?.sessionDao() ?: return
+        val session = dao.getSessionById(sessionId)
         if (session != null) {
-            db.sessionDao().updateSession(session.copy(endTimeMonotonicMs = endMonotonicMs))
+            dao.updateSession(session.copy(endTimeMonotonicMs = endMonotonicMs))
         }
     }
 
-    suspend fun updateSessionMetadata(sessionId: Long, title: String, notes: String) {
-        val session = db.sessionDao().getSessionById(sessionId)
+    open suspend fun updateSessionMetadata(sessionId: Long, title: String, notes: String) {
+        val dao = db?.sessionDao() ?: return
+        val session = dao.getSessionById(sessionId)
         if (session != null) {
-            db.sessionDao().updateSession(session.copy(title = title.trim(), notes = notes.trim()))
+            dao.updateSession(session.copy(title = title.trim(), notes = notes.trim()))
         }
     }
 
-    suspend fun deleteSession(sessionId: Long) {
-        db.imuSampleDao().deleteSamplesForSession(sessionId)
-        db.boschSampleDao().deleteSamplesForSession(sessionId)
-        db.stateIntervalDao().deleteIntervalsForSession(sessionId)
-        db.wledIntervalDao().deleteIntervalsForSession(sessionId)
-        db.rideMarkerDao().deleteMarkersForSession(sessionId)
-        db.sessionDao().deleteSessionById(sessionId)
+    open suspend fun deleteSession(sessionId: Long) {
+        val database = db ?: return
+        database.imuSampleDao().deleteSamplesForSession(sessionId)
+        database.boschSampleDao().deleteSamplesForSession(sessionId)
+        database.stateIntervalDao().deleteIntervalsForSession(sessionId)
+        database.wledIntervalDao().deleteIntervalsForSession(sessionId)
+        database.rideMarkerDao().deleteMarkersForSession(sessionId)
+        database.sessionDao().deleteSessionById(sessionId)
     }
 
-    suspend fun insertStateInterval(interval: StateIntervalEntity): Long {
-        return db.stateIntervalDao().insertInterval(interval)
+    open suspend fun insertStateInterval(interval: StateIntervalEntity): Long {
+        return db?.stateIntervalDao()?.insertInterval(interval) ?: 0L
     }
 
-    suspend fun updateStateInterval(interval: StateIntervalEntity) {
-        db.stateIntervalDao().updateInterval(interval)
+    open suspend fun updateStateInterval(interval: StateIntervalEntity) {
+        db?.stateIntervalDao()?.updateInterval(interval)
     }
 
-    suspend fun insertWledInterval(interval: WledIntervalEntity): Long {
-        return db.wledIntervalDao().insertInterval(interval)
+    open suspend fun insertWledInterval(interval: WledIntervalEntity): Long {
+        return db?.wledIntervalDao()?.insertInterval(interval) ?: 0L
     }
 
-    suspend fun updateWledInterval(interval: WledIntervalEntity) {
-        db.wledIntervalDao().updateInterval(interval)
+    open suspend fun updateWledInterval(interval: WledIntervalEntity) {
+        db?.wledIntervalDao()?.updateInterval(interval)
     }
 
-    suspend fun insertImuSample(sample: ImuSampleEntity) {
-        db.imuSampleDao().insertSample(sample)
+    open suspend fun insertImuSample(sample: ImuSampleEntity) {
+        db?.imuSampleDao()?.insertSample(sample)
     }
 
-    suspend fun insertImuSamples(samples: List<ImuSampleEntity>) {
+    open suspend fun insertImuSamples(samples: List<ImuSampleEntity>) {
         if (samples.isNotEmpty()) {
-            db.imuSampleDao().insertSamples(samples)
+            db?.imuSampleDao()?.insertSamples(samples)
         }
     }
 
-    suspend fun insertBoschSample(sample: BoschSampleEntity) {
-        db.boschSampleDao().insertSample(sample)
+    open suspend fun insertBoschSample(sample: BoschSampleEntity) {
+        db?.boschSampleDao()?.insertSample(sample)
     }
 
-    suspend fun insertRideMarker(marker: RideMarkerEntity): Long {
-        return db.rideMarkerDao().insertMarker(marker)
+    open suspend fun insertRideMarker(marker: RideMarkerEntity): Long {
+        return db?.rideMarkerDao()?.insertMarker(marker) ?: 0L
     }
 
-    fun getStateIntervals(sessionId: Long): Flow<List<StateIntervalEntity>> =
-        db.stateIntervalDao().getIntervalsForSession(sessionId)
+    open fun getStateIntervals(sessionId: Long): Flow<List<StateIntervalEntity>> =
+        db?.stateIntervalDao()?.getIntervalsForSession(sessionId) ?: emptyFlow()
 
-    fun getWledIntervals(sessionId: Long): Flow<List<WledIntervalEntity>> =
-        db.wledIntervalDao().getIntervalsForSession(sessionId)
+    open fun getWledIntervals(sessionId: Long): Flow<List<WledIntervalEntity>> =
+        db?.wledIntervalDao()?.getIntervalsForSession(sessionId) ?: emptyFlow()
 
-    fun getImuSamples(sessionId: Long): Flow<List<ImuSampleEntity>> =
-        db.imuSampleDao().getSamplesForSession(sessionId)
+    open fun getImuSamples(sessionId: Long): Flow<List<ImuSampleEntity>> =
+        db?.imuSampleDao()?.getSamplesForSession(sessionId) ?: emptyFlow()
 
-    suspend fun getImuSessionSummary(sessionId: Long): ImuSessionSummary =
-        db.imuSampleDao().getSessionSummary(sessionId)
+    open suspend fun getImuSessionSummary(sessionId: Long): ImuSessionSummary =
+        db?.imuSampleDao()?.getSessionSummary(sessionId) ?: ImuSessionSummary()
 
-    fun getBoschSamples(sessionId: Long): Flow<List<BoschSampleEntity>> =
-        db.boschSampleDao().getSamplesForSession(sessionId)
+    open fun getBoschSamples(sessionId: Long): Flow<List<BoschSampleEntity>> =
+        db?.boschSampleDao()?.getSamplesForSession(sessionId) ?: emptyFlow()
 
-    fun getRideMarkers(sessionId: Long): Flow<List<RideMarkerEntity>> =
-        db.rideMarkerDao().getMarkersForSession(sessionId)
+    open fun getRideMarkers(sessionId: Long): Flow<List<RideMarkerEntity>> =
+        db?.rideMarkerDao()?.getMarkersForSession(sessionId) ?: emptyFlow()
 }

@@ -5,83 +5,15 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
-import com.example.config.ConfigManager
-import com.example.logging.LoggingDatabase
-import com.example.logging.LogRepository
-import com.example.ride.BoschSpeedProvider
-import com.example.ride.FusedSpeedProvider
-import com.example.ride.GpsSpeedProvider
-import com.example.ride.RideOrchestrator
-import com.example.safety.LockController
-import com.example.wled.WledController
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 class PrettyNightsApp : Application() {
 
-    lateinit var configManager: ConfigManager
-    lateinit var lockController: LockController
-    lateinit var database: LoggingDatabase
-    lateinit var logRepository: LogRepository
-    lateinit var gpsSpeedProvider: GpsSpeedProvider
-    lateinit var boschSpeedProvider: BoschSpeedProvider
-    lateinit var fusedSpeedProvider: FusedSpeedProvider
-    lateinit var wledController: WledController
-    lateinit var orchestrator: RideOrchestrator
-
-    // Caching preference to prevent blocking calls on sensor thread
-    @Volatile
-    var cachedSpeedSource: String = "GPS_ONLY"
+    lateinit var container: AppContainer
+        private set
 
     override fun onCreate() {
         super.onCreate()
-        instance = this
-
-        // 1. Database & Logging Room Setup
-        database = LoggingDatabase.getDatabase(this)
-        logRepository = LogRepository(database)
-
-        // 2. Config & Safety Locks
-        configManager = ConfigManager(this)
-        lockController = LockController()
-
-        // 4. WLED Connection (with USB-C Ethernet & Wi-Fi local interface binding)
-        wledController = WledController(this)
-
-        // Prefetch configuration snapshot for cache or update when safe
-        CoroutineScope(Dispatchers.IO).launch {
-            configManager.configFlow.collect { config ->
-                val isRunning = if (this@PrettyNightsApp::orchestrator.isInitialized) {
-                    orchestrator.isRunning
-                } else false
-                if (!isRunning) {
-                     cachedSpeedSource = config.speedSource
-                }
-                wledController.updateTransportConfig(
-                    lockToLocalNetwork = config.lockToLocalNetwork,
-                    usbSerialFallbackEnabled = config.usbSerialFallbackEnabled
-                )
-            }
-        }
-
-        // 3. Sensoring & Speed Providers
-        gpsSpeedProvider = GpsSpeedProvider(this)
-        boschSpeedProvider = BoschSpeedProvider(this)
-        fusedSpeedProvider = FusedSpeedProvider(gpsSpeedProvider, boschSpeedProvider) {
-            cachedSpeedSource
-        }
-
-        // 5. Build Orchestrator
-        orchestrator = RideOrchestrator(
-            context = this,
-            configManager = configManager,
-            lockController = lockController,
-            logRepository = logRepository,
-            speedProvider = fusedSpeedProvider,
-            wledController = wledController
-        )
-
+        container = AppContainer(this)
         createNotificationChannel()
     }
 
@@ -101,7 +33,5 @@ class PrettyNightsApp : Application() {
 
     companion object {
         const val CHANNEL_ID = "prettynights_ride_channel"
-        lateinit var instance: PrettyNightsApp
-            private set
     }
 }

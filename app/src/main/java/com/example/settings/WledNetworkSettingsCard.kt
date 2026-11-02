@@ -17,14 +17,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.PrettyNightsApp
 import com.example.R
 import com.example.config.AppConfig
 import com.example.wled.WledLinkType
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.example.wled.WledTransportState
 
 fun cleanHost(input: String): Pair<String, String?> {
     val trimmed = input.trim()
@@ -74,20 +70,19 @@ fun cleanHost(input: String): Pair<String, String?> {
 fun WledNetworkSettingsCard(
     config: AppConfig,
     isLocked: Boolean,
+    transportState: WledTransportState = WledTransportState(),
+    testResult: String? = null,
+    onRefreshTransport: () -> Unit = {},
+    onTestConnection: (String) -> Unit = {},
     onConfigSave: (AppConfig) -> Unit
 ) {
-    val scope = rememberCoroutineScope()
-    val app = PrettyNightsApp.instance
-    val transportState by app.wledController.transportState.collectAsStateWithLifecycle()
-
     var wledHostInput by remember(config.wledHost) { mutableStateOf(config.wledHost) }
     var audioSyncPortInput by remember(config.audioSyncPort) { mutableStateOf(config.audioSyncPort.toString()) }
-    var testResult by remember { mutableStateOf<String?>(null) }
 
     val (_, correctionNote) = remember(wledHostInput) { cleanHost(wledHostInput) }
 
     LaunchedEffect(Unit) {
-        app.wledController.refreshTransport()
+        onRefreshTransport()
     }
 
     Card(
@@ -387,25 +382,7 @@ fun WledNetworkSettingsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Button(
-                    onClick = {
-                        val (cleaned, _) = cleanHost(wledHostInput)
-                        if (cleaned.isEmpty()) {
-                            testResult = "Unreachable"
-                        } else {
-                            testResult = "Checking..."
-                            scope.launch {
-                                val ok = withContext(Dispatchers.IO) {
-                                    app.wledController.ping(cleaned)
-                                }
-                                val latency = app.wledController.transportState.value.lastPingLatencyMs
-                                testResult = if (ok) {
-                                    if (latency != null) "Reachable (${latency} ms)" else "Reachable"
-                                } else {
-                                    "Unreachable"
-                                }
-                            }
-                        }
-                    },
+                    onClick = { onTestConnection(wledHostInput) },
                     enabled = !isLocked,
                     modifier = Modifier.testTag("btn_test_connection")
                 ) {

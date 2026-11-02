@@ -18,8 +18,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.PrettyNightsApp
+import com.example.config.RideMarkerType
 import com.example.logging.ImuSampleEntity
 import com.example.logging.RideMarkerEntity
 import com.example.logging.SessionEntity
@@ -27,10 +26,6 @@ import com.example.statemachine.RideSample
 import com.example.statemachine.RideState
 import com.example.statemachine.RideStateMachine
 import com.example.statemachine.StateMachineConfig
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.*
 import kotlin.math.abs
 
@@ -121,8 +116,10 @@ object RideReplaySimulator {
         val recShare = RideState.entries.associateWith { ((recordedCounts[it] ?: 0) * 100f) / total }
         val simShare = RideState.entries.associateWith { ((simulatedCounts[it] ?: 0) * 100f) / total }
 
-        // Evaluate marker accuracy within ±750 ms window
-        val brakeMarkers = markers.filter { it.markerType == "HARD_BRAKE" || it.markerType == "LIGHT_BRAKE" }
+        // Evaluate marker accuracy within ±750 ms window using typed RideMarkerType
+        val brakeMarkers = markers.filter {
+            it.markerType in setOf(RideMarkerType.HARD_BRAKE, RideMarkerType.LIGHT_BRAKE)
+        }
         var brakeDetected = 0
         for (bm in brakeMarkers) {
             val hit = simulatedStatesByTimestamp.any { (ts, st) ->
@@ -131,7 +128,7 @@ object RideReplaySimulator {
             if (hit) brakeDetected++
         }
 
-        val bumpMarkers = markers.filter { it.markerType == "ROAD_BUMP" }
+        val bumpMarkers = markers.filter { it.markerType == RideMarkerType.ROAD_BUMP }
         var bumpRejected = 0
         for (rm in bumpMarkers) {
             val falseTrigger = simulatedStatesByTimestamp.any { (ts, st) ->
@@ -157,16 +154,14 @@ object RideReplaySimulator {
 
 @Composable
 fun TuningReplayCard(
-    currentStateMachineConfig: StateMachineConfig
+    currentStateMachineConfig: StateMachineConfig,
+    sessions: List<SessionEntity> = emptyList(),
+    replayResult: ReplayComparisonResult? = null,
+    isRunningReplay: Boolean = false,
+    onRunReplay: (Long, StateMachineConfig, String) -> Unit = { _, _, _ -> }
 ) {
-    val logRepository = PrettyNightsApp.instance.logRepository
-    val sessions by logRepository.allSessions.collectAsStateWithLifecycle(initialValue = emptyList())
-    val coroutineScope = rememberCoroutineScope()
-
     var selectedSessionId by remember { mutableStateOf<Long?>(null) }
     var replaySpeedSource by remember { mutableStateOf("RECORDED") }
-    var replayResult by remember { mutableStateOf<ReplayComparisonResult?>(null) }
-    var isRunningReplay by remember { mutableStateOf(false) }
 
     LaunchedEffect(sessions) {
         if (selectedSessionId == null && sessions.isNotEmpty()) {
@@ -302,21 +297,7 @@ fun TuningReplayCard(
                 Button(
                     onClick = {
                         val sId = selectedSessionId ?: return@Button
-                        isRunningReplay = true
-                        coroutineScope.launch {
-                            val result = withContext(Dispatchers.Default) {
-                                val samples = logRepository.getImuSamples(sId).first()
-                                val markers = logRepository.getRideMarkers(sId).first()
-                                RideReplaySimulator.runReplay(
-                                    imuSamples = samples,
-                                    markers = markers,
-                                    config = currentStateMachineConfig,
-                                    replaySpeedSource = replaySpeedSource
-                                )
-                            }
-                            replayResult = result
-                            isRunningReplay = false
-                        }
+                        onRunReplay(sId, currentStateMachineConfig, replaySpeedSource)
                     },
                     enabled = !isRunningReplay && selectedSessionId != null,
                     modifier = Modifier

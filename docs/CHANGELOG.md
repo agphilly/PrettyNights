@@ -37,7 +37,47 @@ All notable changes, architectural milestones, and component updates for the **P
 ---
 
 ## [Unreleased]
-*No unreleased changes currently staged. Changes made after Build 10 (`v1.9.0`) will appear here until the next GitHub push.*
+*No unreleased changes currently staged. Changes made after Build 11 (`v2.0.0`) will appear here until the next GitHub push.*
+
+---
+
+## [Build 11 — v2.0.0] - 2026-11-01
+**Suggested Git Commit:** `refactor(arch): serialize RideOrchestrator interval/lifecycle channels, adopt typed model enums & AppContainer ViewModels, and enforce Kotlin-JS state-machine parity`
+
+### Added
+- **`AppContainer` & Screen ViewModels (`AppContainer.kt` + 5 ViewModels)**:
+  - Replaced `PrettyNightsApp.instance` across all Compose screens and services with `AppContainer` (`PrettyNightsApp.container` / `Context.appContainer`) and 5 screen ViewModels (`HomeViewModel`, `PatternsViewModel`, `HistoryViewModel`, `SettingsViewModel`, `TuningViewModel`) paired with stateless `*Content` composables (`HomeContent`, `PatternsContent`, `HistoryContent`, `SettingsContent`, `TuningContent`).
+- **Kotlin <-> JavaScript State-Machine Parity Suite (`RideStateMachineParityTest.kt` & `tools/telemetry-workbench/parity.test.js`)**:
+  - Extracted `DEFAULT_CONFIG` and `JsRideStateMachine` into `tools/telemetry-workbench/ride-state-machine.js` shared between `index.html` and Node.js.
+  - Added `RideStateMachineParityTest` generating and verifying `tools/telemetry-workbench/fixtures/parity.json` across 4 scripted 50 Hz rides (`hard_stop`, `road_bump_rejection`, `slow_roll_to_idle`, `brake_then_release`), and wired `node tools/telemetry-workbench/parity.test.js` into `.github/workflows/android-ci.yml`.
+- **Orchestrator & ViewModel Unit Test Suites (`RideOrchestratorTest.kt` & `ViewModelsTest.kt`)**:
+  - Added concurrency stress tests verifying single-writer interval integrity under random IO delays and back-to-back `start()`/`stop()` command serialization, plus ViewModel unit and Robolectric Compose tests.
+
+### Changed / Refactored
+- **End-to-End Typed Domain Enums & Shared `AppJson.moshi` (`DomainEnums.kt`, `ConfigManager.kt`, `LoggingDatabase.kt`, `SpeedProvider.kt`)**:
+  - Promoted `SpeedSourceMode`, `SensorAxis`, `RideMarkerType`, `Io13PinRole`, `SegmentTarget`, and `ActiveSpeedSource` directly into `AppConfig`, `WledHardwareConfig`, `WledLook`, `SessionEntity`, `RideMarkerEntity`, and `SpeedProvider`, backed by Moshi `@ToJson`/`@FromJson` adapters (`DomainEnumJson`), a single shared `AppJson.moshi` instance, and Room `EnumConverters`.
+
+### Fixed
+- **`RideOrchestrator` Sequential Interval Writer Channel (Item 1)**:
+  - Replaced interleaved `scope.launch` + `intervalMutex` blocks with a single `Channel<IntervalOp>(Channel.UNLIMITED)` consumer coroutine that exclusively owns `openState` and `openWled`, guaranteeing `insert` always completes before `close` regardless of SQLite dispatch latency.
+- **`RideOrchestrator` Sequential `start()` / `stop()` Command Channel (Item 2)**:
+  - Replaced async `start()`/`stop()` launches with a sequential `Channel<LifecycleCmd>(Channel.UNLIMITED)` consumer loop and reactive `isRunningFlow: StateFlow<Boolean>`.
+- **Safe Enum Fallbacks (Item 4)**:
+  - Changed `SpeedSourceMode.fromWireValue` unknown fallback from `BOSCH_PREFERRED` to `GPS_ONLY` and replaced `RideMarkerType.fromWireValue`'s silent `BOSCH_GLITCH` fallback with `RideMarkerType.fromWireValueOrNull(raw): RideMarkerType?`.
+- **Workspace Cleanup (Item 7)**:
+  - Removed temporary code-review PDF attachments from `public/assets/aistudio/` and bumped `app/build.gradle.kts` to `versionCode = 11` / `versionName = "2.0.0"`.
+
+### Key Files Touched
+- `/app/src/main/java/com/example/AppContainer.kt`, `/app/src/main/java/com/example/PrettyNightsApp.kt`, `/app/src/main/java/com/example/MainActivity.kt`
+- `/app/src/main/java/com/example/config/DomainEnums.kt`, `/app/src/main/java/com/example/config/ConfigManager.kt`, `/app/src/main/java/com/example/logging/LoggingDatabase.kt`
+- `/app/src/main/java/com/example/ride/RideOrchestrator.kt`, `/app/src/main/java/com/example/ride/SpeedProvider.kt`, `/app/src/main/java/com/example/ride/RideService.kt`, `/app/src/main/java/com/example/ride/MusicService.kt`
+- `/app/src/main/java/com/example/home/HomeViewModel.kt`, `/app/src/main/java/com/example/home/HomeScreen.kt`
+- `/app/src/main/java/com/example/patterns/PatternsViewModel.kt`, `/app/src/main/java/com/example/patterns/PatternsScreen.kt`
+- `/app/src/main/java/com/example/history/HistoryViewModel.kt`, `/app/src/main/java/com/example/history/HistoryScreen.kt`
+- `/app/src/main/java/com/example/settings/SettingsViewModel.kt`, `/app/src/main/java/com/example/settings/SettingsScreen.kt`
+- `/app/src/main/java/com/example/tuning/TuningViewModel.kt`, `/app/src/main/java/com/example/tuning/TuningScreen.kt`
+- `/tools/telemetry-workbench/ride-state-machine.js`, `/tools/telemetry-workbench/parity.test.js`, `/tools/telemetry-workbench/fixtures/parity.json`
+- `/app/src/test/java/com/example/RideOrchestratorTest.kt`, `/app/src/test/java/com/example/RideStateMachineParityTest.kt`, `/app/src/test/java/com/example/ViewModelsTest.kt`
 
 ---
 

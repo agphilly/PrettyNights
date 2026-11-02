@@ -113,14 +113,14 @@ You can synchronize this project with GitHub directly from **Google AI Studio** 
 
 | Package / Module | Responsibility |
 | :--- | :--- |
-| `com.example.MainActivity` & `PrettyNightsApp` | Edge-to-edge M3 scaffold, bottom navigation bar (`HOME`, `PATTERNS`, `HISTORY`, `SETTINGS` + `TUNING` route), runtime permissions, and singleton dependency container. |
-| `com.example.home` | `HomeScreen`, `HomeReadinessCard`, `HomeActionControls`, and `HomeVisualizerCard`: live speed/state readout, Start/Stop Ride CTA, in-ride event marker bar, bike lighting/FFT visualizer, and bottom Log Only Mode toggle card. |
-| `com.example.ride` | `RideOrchestrator` (50 Hz sensor coordinator, WLED rate-limiter, Room batch logger), `RideService`, `MusicService` (1024-pt FFT + UDP V2), `SpeedProvider`, and `BoschLiveData` (`eb20`/`eb21` BLE client + protobuf decoder). |
+| `com.example.MainActivity`, `PrettyNightsApp` & `AppContainer` | Edge-to-edge M3 scaffold, bottom navigation bar (`Ride`, `Patterns`, `History`, `Config` + `Tuning` route), and `AppContainer` dependency container. |
+| `com.example.home` | `HomeViewModel`, `HomeScreen` (`HomeContent`), `HomeReadinessCard`, `HomeActionControls`, and `HomeVisualizerCard`: live speed/state readout, Start/Stop Ride CTA, in-ride event marker bar, bike lighting/FFT visualizer, and bottom Log Only Mode toggle card. |
+| `com.example.ride` | `RideOrchestrator` (50 Hz sensor coordinator, sequential command & interval channels, WLED rate-limiter, Room batch logger), `RideService`, `MusicService` (1024-pt FFT + UDP V2), `SpeedProvider`, and `BoschLiveData` (`eb20`/`eb21` BLE client + protobuf decoder). |
 | `com.example.statemachine` | `RideStateMachine` pure deterministic evaluator (`IDLE`, `CRUISING`, `BRAKING`, `BRAKING_HOLD`), `StateMachineConfig`, and `StateMachineTelemetry`. |
-| `com.example.patterns` | `PatternsScreen`, `StateLookCard`, `PresetLookSection`, `CustomLookSection`, and `ColorPickerSliders` for per-state WLED presets, custom segments, effects, palettes, and transitions. |
-| `com.example.history` | `HistoryScreen` and `SessionExportHelper`: expandable session cards with SQL summary metrics, Bosch V1.0 reliability report, session notes editor, and 4-section CSV export. |
-| `com.example.settings` & `com.example.tuning` | `SettingsScreen` (`WledNetworkSettingsCard`, `WledHardwareConfigCard`, `SpeedSourceSettingsCard`, `SensorCalibrationCard`, Dev Tuning entry) and `TuningScreen` (`TuningTelemetryCard`, `TuningManualOverrideCard`, `TuningReplayCard`, `TuningParameterSections`). |
-| `com.example.config` & `com.example.logging` | `ConfigManager` (DataStore JSON persistence for `AppConfig`), `DomainEnums` (typed wire enums), and `LoggingDatabase` (Room SQLite tables for sessions, intervals, 50 Hz IMU/GPS/Bosch samples, raw Bosch `eb21` packets, and ride markers). |
+| `com.example.patterns` | `PatternsViewModel`, `PatternsScreen` (`PatternsContent`), `StateLookCard`, `PresetLookSection`, `CustomLookSection`, and `ColorPickerSliders` for per-state WLED presets, custom segments, effects, palettes, and transitions. |
+| `com.example.history` | `HistoryViewModel`, `HistoryScreen` (`HistoryContent`), and `SessionExportHelper`: expandable session cards with SQL summary metrics, Bosch V1.0 reliability report, session notes editor, and 4-section CSV export. |
+| `com.example.settings` & `com.example.tuning` | `SettingsViewModel` / `SettingsScreen` (`SettingsContent`, `WledNetworkSettingsCard`, `WledHardwareConfigCard`, `SpeedSourceSettingsCard`, `SensorCalibrationCard`) and `TuningViewModel` / `TuningScreen` (`TuningContent`, `TuningTelemetryCard`, `TuningManualOverrideCard`, `TuningReplayCard`, `TuningParameterSections`). |
+| `com.example.config` & `com.example.logging` | `ConfigManager` (DataStore JSON persistence for `AppConfig`), `DomainEnums` (typed wire enums + `AppJson.moshi`), and `LoggingDatabase` (Room SQLite tables with `EnumConverters` for sessions, intervals, 50 Hz IMU/GPS/Bosch samples, raw Bosch `eb21` packets, and ride markers). |
 | `com.example.wled` & `com.example.safety` | `WledController` (`/json/state`, `/json/cfg`, `/presets.json`, `/json/eff`, `/json/pal`) and `LockController` (motion safety lock when moving). |
 
 ---
@@ -130,6 +130,11 @@ You can synchronize this project with GitHub directly from **Google AI Studio** 
 ### Run JVM & Robolectric Unit Tests
 ```bash
 gradle :app:testDebugUnitTest
+```
+
+### Run Kotlin ↔ JavaScript State-Machine Parity Test
+```bash
+node tools/telemetry-workbench/parity.test.js
 ```
 
 ### Assemble Debug APK
@@ -145,5 +150,5 @@ The compiled debug APK is generated at `app/build/outputs/apk/debug/app-debug.ap
 This repository includes an automated workflow at [`.github/workflows/android-ci.yml`](./.github/workflows/android-ci.yml) that runs on every `push` and `pull_request`:
 1. Provisions Ubuntu with **JDK 21**, the Android SDK, and **Gradle 8.13** with dependency caching.
 2. Restores `debug.keystore` from `debug.keystore.base64` and initializes `.env` from `.env.example`.
-3. Runs the unit test suite (`:app:testDebugUnitTest`) and publishes HTML test reports as build artifacts.
+3. Runs the unit test suite (`:app:testDebugUnitTest`), verifies Kotlin-to-JS state machine parity (`node tools/telemetry-workbench/parity.test.js`), and publishes HTML test reports as build artifacts.
 4. Compiles the debug APK (`:app:assembleDebug`) and uploads `pretty-nights-debug-apk` to the workflow run summary.

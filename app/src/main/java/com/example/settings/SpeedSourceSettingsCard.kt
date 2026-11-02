@@ -8,7 +8,6 @@ import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -17,6 +16,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.config.AppConfig
+import com.example.config.SpeedSourceMode
+
+private fun SpeedSourceMode.description(): String = when (this) {
+    SpeedSourceMode.GPS_ONLY ->
+        "Uses your phone's GPS. Works without a bike connection. Recommended default."
+    SpeedSourceMode.BOSCH_PREFERRED ->
+        "Uses the bike's speed sensor when available (more accurate), and falls back to GPS automatically if that connection drops or hasn't been set up."
+    SpeedSourceMode.BOSCH_ONLY ->
+        "Uses only the bike's speed sensor. If that connection isn't active, ride speed will read as zero — not recommended unless you know the bike connection is working."
+}
 
 @Composable
 fun SpeedSourceSettingsCard(
@@ -24,14 +33,7 @@ fun SpeedSourceSettingsCard(
     isLocked: Boolean,
     onConfigSave: (AppConfig) -> Unit
 ) {
-    val currentSelection = remember(config.speedSource) {
-        when (config.speedSource) {
-            "GPS", "GPS_ONLY" -> "GPS_ONLY"
-            "BOSCH_PREFERRED" -> "BOSCH_PREFERRED"
-            "BOSCH_ONLY" -> "BOSCH_ONLY"
-            else -> "GPS_ONLY"
-        }
-    }
+    val currentSelection = config.speedSource
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -59,33 +61,20 @@ fun SpeedSourceSettingsCard(
                 )
             }
 
-            val options = listOf(
-                Triple(
-                    "GPS_ONLY",
-                    "GPS Only",
-                    "Uses your phone's GPS. Works without a bike connection. Recommended default."
-                ),
-                Triple(
-                    "BOSCH_PREFERRED",
-                    "Bosch Preferred",
-                    "Uses the bike's speed sensor when available (more accurate), and falls back to GPS automatically if that connection drops or hasn't been set up."
-                ),
-                Triple(
-                    "BOSCH_ONLY",
-                    "Bosch Only",
-                    "Uses only the bike's speed sensor. If that connection isn't active, ride speed will read as zero — not recommended unless you know the bike connection is working."
-                )
-            )
-
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                options.forEach { (key, label, desc) ->
-                    val isSelected = currentSelection == key
+                SpeedSourceMode.entries.forEach { mode ->
+                    val isSelected = currentSelection == mode
+                    val label = when (mode) {
+                        SpeedSourceMode.GPS_ONLY -> "GPS Only"
+                        SpeedSourceMode.BOSCH_PREFERRED -> "Bosch Preferred"
+                        SpeedSourceMode.BOSCH_ONLY -> "Bosch Only"
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(MaterialTheme.shapes.small)
                             .clickable(enabled = !isLocked) {
-                                onConfigSave(config.copy(speedSource = key))
+                                onConfigSave(config.copy(speedSource = mode))
                             }
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.Top
@@ -94,11 +83,11 @@ fun SpeedSourceSettingsCard(
                             selected = isSelected,
                             onClick = {
                                 if (!isLocked) {
-                                    onConfigSave(config.copy(speedSource = key))
+                                    onConfigSave(config.copy(speedSource = mode))
                                 }
                             },
                             enabled = !isLocked,
-                            modifier = Modifier.testTag("radio_option_$key")
+                            modifier = Modifier.testTag("radio_option_${mode.wireValue}")
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
@@ -110,7 +99,7 @@ fun SpeedSourceSettingsCard(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = desc,
+                                text = mode.description(),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                 fontSize = 12.sp,
@@ -121,7 +110,7 @@ fun SpeedSourceSettingsCard(
                 }
             }
 
-            if (currentSelection == "BOSCH_PREFERRED" || currentSelection == "BOSCH_ONLY") {
+            if (currentSelection == SpeedSourceMode.BOSCH_PREFERRED || currentSelection == SpeedSourceMode.BOSCH_ONLY) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

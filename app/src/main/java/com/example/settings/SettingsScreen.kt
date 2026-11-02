@@ -22,17 +22,66 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.PrettyNightsApp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.config.AppConfig
+import com.example.config.WledHardwareConfig
+import com.example.wled.WledHardwareLiveInfo
+import com.example.wled.WledTransportState
 
 @Composable
 fun SettingsScreen(
+    config: AppConfig? = null,
+    onConfigSave: ((AppConfig) -> Unit)? = null,
+    onNavigateToTuning: () -> Unit = {},
+    vm: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory)
+) {
+    val vmConfig by vm.config.collectAsStateWithLifecycle()
+    val isLocked by vm.isLocked.collectAsStateWithLifecycle()
+    val transportState by vm.transportState.collectAsStateWithLifecycle()
+    val testConnectionResult by vm.testConnectionResult.collectAsStateWithLifecycle()
+    val liveHardwareInfo by vm.liveHardwareInfo.collectAsStateWithLifecycle()
+    val isSyncingHardware by vm.isSyncingHardware.collectAsStateWithLifecycle()
+    val hardwareSyncMessage by vm.hardwareSyncMessage.collectAsStateWithLifecycle()
+    val hardwareSyncIsError by vm.hardwareSyncIsError.collectAsStateWithLifecycle()
+
+    val effectiveConfig = config ?: vmConfig
+    val effectiveSave = onConfigSave ?: vm::saveConfig
+
+    SettingsContent(
+        config = effectiveConfig,
+        isLocked = isLocked,
+        transportState = transportState,
+        testConnectionResult = testConnectionResult,
+        liveHardwareInfo = liveHardwareInfo,
+        isSyncingHardware = isSyncingHardware,
+        hardwareSyncMessage = hardwareSyncMessage,
+        hardwareSyncIsError = hardwareSyncIsError,
+        onRefreshTransport = vm::refreshTransport,
+        onTestConnection = vm::testConnection,
+        onReadHardwareInfo = { vm.readHardwareInfo(effectiveConfig.wledHost) },
+        onPushHardwareAndSegments = { hw -> vm.pushHardwareAndSegments(effectiveConfig.wledHost, hw) },
+        onConfigSave = effectiveSave,
+        onNavigateToTuning = onNavigateToTuning
+    )
+}
+
+@Composable
+fun SettingsContent(
     config: AppConfig,
+    isLocked: Boolean,
+    transportState: WledTransportState = WledTransportState(),
+    testConnectionResult: String? = null,
+    liveHardwareInfo: WledHardwareLiveInfo? = null,
+    isSyncingHardware: Boolean = false,
+    hardwareSyncMessage: String? = null,
+    hardwareSyncIsError: Boolean = false,
+    onRefreshTransport: () -> Unit = {},
+    onTestConnection: (String) -> Unit = {},
+    onReadHardwareInfo: () -> Unit = {},
+    onPushHardwareAndSegments: (WledHardwareConfig) -> Unit = {},
     onConfigSave: (AppConfig) -> Unit,
     onNavigateToTuning: () -> Unit = {}
 ) {
-    val isLocked by PrettyNightsApp.instance.lockController.isLocked.collectAsStateWithLifecycle()
-
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -139,6 +188,10 @@ fun SettingsScreen(
             WledNetworkSettingsCard(
                 config = config,
                 isLocked = isLocked,
+                transportState = transportState,
+                testResult = testConnectionResult,
+                onRefreshTransport = onRefreshTransport,
+                onTestConnection = onTestConnection,
                 onConfigSave = onConfigSave
             )
 
@@ -146,6 +199,12 @@ fun SettingsScreen(
             WledHardwareConfigCard(
                 config = config,
                 isLocked = isLocked,
+                liveInfo = liveHardwareInfo,
+                isSyncing = isSyncingHardware,
+                syncStatusMessage = hardwareSyncMessage,
+                syncIsError = hardwareSyncIsError,
+                onReadHardwareInfo = onReadHardwareInfo,
+                onPushHardwareAndSegments = onPushHardwareAndSegments,
                 onConfigSave = onConfigSave
             )
 

@@ -406,8 +406,8 @@ class RideStateMachineTest {
         }
 
         val markers = listOf(
-            com.example.logging.RideMarkerEntity(sessionId = 1L, timestampMonotonicMs = 1200L, markerType = "HARD_BRAKE"),
-            com.example.logging.RideMarkerEntity(sessionId = 1L, timestampMonotonicMs = 2020L, markerType = "ROAD_BUMP")
+            com.example.logging.RideMarkerEntity(sessionId = 1L, timestampMonotonicMs = 1200L, markerType = com.example.config.RideMarkerType.HARD_BRAKE),
+            com.example.logging.RideMarkerEntity(sessionId = 1L, timestampMonotonicMs = 2020L, markerType = com.example.config.RideMarkerType.ROAD_BUMP)
         )
 
         val result = com.example.tuning.RideReplaySimulator.runReplay(

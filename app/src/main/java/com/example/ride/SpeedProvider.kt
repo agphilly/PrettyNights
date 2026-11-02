@@ -5,6 +5,8 @@ import android.content.Context
 import android.location.Location
 import android.os.SystemClock
 import android.util.Log
+import com.example.config.ActiveSpeedSource
+import com.example.config.SpeedSourceMode
 import com.google.android.gms.location.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,8 +23,8 @@ interface SpeedProvider {
     val gpsSpeedMps: Float
         get() = speed
 
-    val activeSpeedSource: String
-        get() = "GPS"
+    val activeSpeedSource: ActiveSpeedSource
+        get() = ActiveSpeedSource.GPS
 
     val boschLiveState: BoschLiveDataState?
         get() = null
@@ -35,7 +37,7 @@ interface SpeedProvider {
 }
 
 // --- GPS Speed Provider ---
-class GpsSpeedProvider(
+open class GpsSpeedProvider(
     private val context: Context
 ) : SpeedProvider {
 
@@ -46,13 +48,13 @@ class GpsSpeedProvider(
     val speedFlow = _speedState.asStateFlow()
 
     override var speed: Float = 0f
-        private set
+        protected set
 
     override var lastUpdateTimeMs: Long = 0L
-        private set
+        protected set
 
     override var isAvailable: Boolean = false
-        private set
+        protected set
 
     private var locationCallback: LocationCallback? = null
 
@@ -129,12 +131,12 @@ class GpsSpeedProvider(
  * Connects via BLE GATT / GAP Service Solicitation (`0000eb20-eaa2-11e9-81b4-2a2ae2dbcce4`) and decodes
  * `com.bosch.ebike.LiveData` notifications on characteristic `0000eb21-eaa2-11e9-81b4-2a2ae2dbcce4`.
  */
-class BoschSpeedProvider(
+open class BoschSpeedProvider(
     private val context: Context? = null
 ) : SpeedProvider {
 
     private val _liveStateFlow = MutableStateFlow(BoschLiveDataState())
-    val liveStateFlow: StateFlow<BoschLiveDataState> = _liveStateFlow.asStateFlow()
+    open val liveStateFlow: StateFlow<BoschLiveDataState> = _liveStateFlow.asStateFlow()
 
     val liveState: BoschLiveDataState
         get() = _liveStateFlow.value
@@ -142,8 +144,8 @@ class BoschSpeedProvider(
     override val boschLiveState: BoschLiveDataState
         get() = _liveStateFlow.value
 
-    override val activeSpeedSource: String
-        get() = "BOSCH"
+    override val activeSpeedSource: ActiveSpeedSource
+        get() = ActiveSpeedSource.BOSCH
 
     private val packetListeners = CopyOnWriteArrayList<(BoschLiveDataPacket, BoschLiveDataState) -> Unit>()
 
@@ -248,7 +250,7 @@ class BoschSpeedProvider(
 class FusedSpeedProvider(
     val gpsProvider: GpsSpeedProvider,
     val boschProvider: BoschSpeedProvider,
-    private val getSourcePref: () -> String // "GPS_ONLY" / "GPS", "BOSCH_PREFERRED", "BOSCH_ONLY"
+    private val getSourcePref: () -> SpeedSourceMode
 ) : SpeedProvider {
 
     override val gpsSpeedMps: Float
@@ -257,45 +259,35 @@ class FusedSpeedProvider(
     override val boschLiveState: BoschLiveDataState
         get() = boschProvider.liveState
 
-    override val activeSpeedSource: String
-        get() {
-            val mode = com.example.config.SpeedSourceMode.fromWireValue(getSourcePref())
-            val now = SystemClock.elapsedRealtime()
-            return when (mode) {
-                com.example.config.SpeedSourceMode.GPS_ONLY -> "GPS"
-                com.example.config.SpeedSourceMode.BOSCH_ONLY -> "BOSCH"
-                com.example.config.SpeedSourceMode.BOSCH_PREFERRED -> {
-                    val boschLast = boschProvider.lastUpdateTimeMs
-                    val boschFresh = boschLast > 0L && (now - boschLast) < BoschSpeedProvider.BOSCH_STALE_TIMEOUT_MS
-                    if (boschFresh) "BOSCH" else "GPS_FALLBACK"
-                }
+    override val activeSpeedSource: ActiveSpeedSource
+        get() = when (getSourcePref()) {
+            SpeedSourceMode.GPS_ONLY -> ActiveSpeedSource.GPS
+            SpeedSourceMode.BOSCH_ONLY -> ActiveSpeedSource.BOSCH
+            SpeedSourceMode.BOSCH_PREFERRED -> {
+                val now = SystemClock.elapsedRealtime()
+                val boschLast = boschProvider.lastUpdateTimeMs
+                val boschFresh = boschLast > 0L && (now - boschLast) < BoschSpeedProvider.BOSCH_STALE_TIMEOUT_MS
+                if (boschFresh) ActiveSpeedSource.BOSCH else ActiveSpeedSource.GPS_FALLBACK
             }
         }
 
     override val speed: Float
-        get() {
-            return when (activeSpeedSource) {
-                "BOSCH" -> boschProvider.speed
-                else -> gpsProvider.speed
-            }
+        get() = when (activeSpeedSource) {
+            ActiveSpeedSource.BOSCH -> boschProvider.speed
+            ActiveSpeedSource.GPS, ActiveSpeedSource.GPS_FALLBACK -> gpsProvider.speed
         }
 
     override val lastUpdateTimeMs: Long
-        get() {
-            return when (activeSpeedSource) {
-                "BOSCH" -> boschProvider.lastUpdateTimeMs
-                else -> gpsProvider.lastUpdateTimeMs
-            }
+        get() = when (activeSpeedSource) {
+            ActiveSpeedSource.BOSCH -> boschProvider.lastUpdateTimeMs
+            ActiveSpeedSource.GPS, ActiveSpeedSource.GPS_FALLBACK -> gpsProvider.lastUpdateTimeMs
         }
 
     override val isAvailable: Boolean
-        get() {
-            val mode = com.example.config.SpeedSourceMode.fromWireValue(getSourcePref())
-            return when (mode) {
-                com.example.config.SpeedSourceMode.GPS_ONLY -> gpsProvider.isAvailable
-                com.example.config.SpeedSourceMode.BOSCH_ONLY -> boschProvider.isAvailable
-                com.example.config.SpeedSourceMode.BOSCH_PREFERRED -> gpsProvider.isAvailable || boschProvider.isAvailable
-            }
+        get() = when (getSourcePref()) {
+            SpeedSourceMode.GPS_ONLY -> gpsProvider.isAvailable
+            SpeedSourceMode.BOSCH_ONLY -> boschProvider.isAvailable
+            SpeedSourceMode.BOSCH_PREFERRED -> gpsProvider.isAvailable || boschProvider.isAvailable
         }
 
     override fun addBoschPacketListener(listener: (BoschLiveDataPacket, BoschLiveDataState) -> Unit) {

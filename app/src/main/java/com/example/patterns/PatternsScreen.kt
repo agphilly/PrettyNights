@@ -15,61 +15,67 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.PrettyNightsApp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.config.AppConfig
+import com.example.config.WledLook
 import com.example.statemachine.RideState
 import com.example.wled.WledPreset
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @Composable
 fun PatternsScreen(
-    config: AppConfig,
-    onConfigSave: (AppConfig) -> Unit
+    config: AppConfig? = null,
+    onConfigSave: ((AppConfig) -> Unit)? = null,
+    vm: PatternsViewModel = viewModel(factory = PatternsViewModel.Factory)
 ) {
-    val coroutineScope = rememberCoroutineScope()
-    val isLocked by PrettyNightsApp.instance.lockController.isLocked.collectAsStateWithLifecycle()
+    val vmConfig by vm.config.collectAsStateWithLifecycle()
+    val isLocked by vm.isLocked.collectAsStateWithLifecycle()
+    val presets by vm.presets.collectAsStateWithLifecycle()
+    val effects by vm.effects.collectAsStateWithLifecycle()
+    val palettes by vm.palettes.collectAsStateWithLifecycle()
+    val isFetching by vm.isFetching.collectAsStateWithLifecycle()
+    val fetchFailed by vm.fetchFailed.collectAsStateWithLifecycle()
+    val previewStatusByState by vm.previewStatusByState.collectAsStateWithLifecycle()
 
+    val effectiveConfig = config ?: vmConfig
+
+    LaunchedEffect(effectiveConfig.wledHost) {
+        vm.fetchWledData(effectiveConfig.wledHost)
+    }
+
+    PatternsContent(
+        config = effectiveConfig,
+        isLocked = isLocked,
+        presets = presets,
+        effects = effects,
+        palettes = palettes,
+        isFetching = isFetching,
+        fetchFailed = fetchFailed,
+        previewStatusByState = previewStatusByState,
+        onRetryFetch = { vm.fetchWledData(effectiveConfig.wledHost) },
+        onPreviewLook = { state, host, look -> vm.previewLook(state, host, look) },
+        onClearPreviewStatus = vm::clearPreviewStatus,
+        onConfigSave = onConfigSave ?: vm::saveConfig
+    )
+}
+
+@Composable
+fun PatternsContent(
+    config: AppConfig,
+    isLocked: Boolean = false,
+    presets: List<WledPreset>? = null,
+    effects: List<String>? = null,
+    palettes: List<String>? = null,
+    isFetching: Boolean = false,
+    fetchFailed: Boolean = false,
+    previewStatusByState: Map<RideState, String> = emptyMap(),
+    onRetryFetch: () -> Unit = {},
+    onPreviewLook: (RideState, String, WledLook) -> Unit = { _, _, _ -> },
+    onClearPreviewStatus: (RideState) -> Unit = {},
+    onConfigSave: (AppConfig) -> Unit = {}
+) {
     var localConfig by remember(config) { mutableStateOf(config) }
     var saveStatusMsg by remember { mutableStateOf<String?>(null) }
-
-    var presets by remember { mutableStateOf<List<WledPreset>?>(null) }
-    var effects by remember { mutableStateOf<List<String>?>(null) }
-    var palettes by remember { mutableStateOf<List<String>?>(null) }
-    var isFetching by remember { mutableStateOf(false) }
-    var fetchFailed by remember { mutableStateOf(false) }
-
-    fun fetchWledData() {
-        val host = localConfig.wledHost
-        if (host.isBlank()) return
-        isFetching = true
-        fetchFailed = false
-        coroutineScope.launch(Dispatchers.IO) {
-            val controller = PrettyNightsApp.instance.wledController
-            val fetchedPresets = controller.fetchPresets(host)
-            val fetchedEffects = if (fetchedPresets != null) controller.fetchEffects(host) else null
-            val fetchedPalettes = if (fetchedPresets != null) controller.fetchPalettes(host) else null
-
-            withContext(Dispatchers.Main) {
-                isFetching = false
-                if (fetchedPresets == null) {
-                    fetchFailed = true
-                } else {
-                    presets = fetchedPresets
-                    effects = fetchedEffects
-                    palettes = fetchedPalettes
-                    fetchFailed = false
-                }
-            }
-        }
-    }
-
-    LaunchedEffect(localConfig.wledHost) {
-        fetchWledData()
-    }
-
     var activeEditingState by remember { mutableStateOf<RideState?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -166,7 +172,7 @@ fun PatternsScreen(
                             fontWeight = FontWeight.Medium
                         )
                         Button(
-                            onClick = { fetchWledData() },
+                            onClick = onRetryFetch,
                             modifier = Modifier.testTag("btn_retry_fetch_presets")
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -187,7 +193,7 @@ fun PatternsScreen(
                 palettes = palettes,
                 isFetchingPresets = isFetching,
                 fetchFailed = fetchFailed,
-                onRetryFetch = { fetchWledData() },
+                onRetryFetch = onRetryFetch,
                 expanded = activeEditingState == RideState.IDLE,
                 onHeaderClick = {
                     activeEditingState = if (activeEditingState == RideState.IDLE) null else RideState.IDLE
@@ -196,7 +202,9 @@ fun PatternsScreen(
                     localConfig = localConfig.copy(idleLook = newLook)
                 },
                 isLocked = isLocked,
-                wledHost = localConfig.wledHost
+                previewStatus = previewStatusByState[RideState.IDLE],
+                onPreviewLook = { onPreviewLook(RideState.IDLE, localConfig.wledHost, localConfig.idleLook) },
+                onClearPreviewStatus = { onClearPreviewStatus(RideState.IDLE) }
             )
 
             StateLookCard(
@@ -208,7 +216,7 @@ fun PatternsScreen(
                 palettes = palettes,
                 isFetchingPresets = isFetching,
                 fetchFailed = fetchFailed,
-                onRetryFetch = { fetchWledData() },
+                onRetryFetch = onRetryFetch,
                 expanded = activeEditingState == RideState.CRUISING,
                 onHeaderClick = {
                     activeEditingState = if (activeEditingState == RideState.CRUISING) null else RideState.CRUISING
@@ -217,7 +225,9 @@ fun PatternsScreen(
                     localConfig = localConfig.copy(cruisingLook = newLook)
                 },
                 isLocked = isLocked,
-                wledHost = localConfig.wledHost
+                previewStatus = previewStatusByState[RideState.CRUISING],
+                onPreviewLook = { onPreviewLook(RideState.CRUISING, localConfig.wledHost, localConfig.cruisingLook) },
+                onClearPreviewStatus = { onClearPreviewStatus(RideState.CRUISING) }
             )
 
             StateLookCard(
@@ -229,7 +239,7 @@ fun PatternsScreen(
                 palettes = palettes,
                 isFetchingPresets = isFetching,
                 fetchFailed = fetchFailed,
-                onRetryFetch = { fetchWledData() },
+                onRetryFetch = onRetryFetch,
                 expanded = activeEditingState == RideState.BRAKING,
                 onHeaderClick = {
                     activeEditingState = if (activeEditingState == RideState.BRAKING) null else RideState.BRAKING
@@ -238,7 +248,9 @@ fun PatternsScreen(
                     localConfig = localConfig.copy(brakingLook = newLook)
                 },
                 isLocked = isLocked,
-                wledHost = localConfig.wledHost
+                previewStatus = previewStatusByState[RideState.BRAKING],
+                onPreviewLook = { onPreviewLook(RideState.BRAKING, localConfig.wledHost, localConfig.brakingLook) },
+                onClearPreviewStatus = { onClearPreviewStatus(RideState.BRAKING) }
             )
 
             // Save Settings status and action

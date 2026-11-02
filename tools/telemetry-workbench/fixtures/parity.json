@@ -1,0 +1,4103 @@
+{
+  "config": {
+    "globalMinBrightness": 0.2,
+    "globalMaxBrightness": 0.8,
+    "brakingIgnoresGlobalMax": true,
+    "idleEnterSpeedKmh": 2.0,
+    "idleExitSpeedKmh": 4.0,
+    "idleEntryFadeS": 0.6,
+    "idleBrightness": 0.15,
+    "requireBoschIdleConfirm": false,
+    "cruisingEntryFadeS": 0.5,
+    "cruisingBrightness": 0.55,
+    "brakingEntryFadeS": 0.0,
+    "brakingDecelThreshold": -1.5,
+    "brakingDebounceMs": 180,
+    "brakingCooldownMs": 350,
+    "brakingMinBrightness": 0.6,
+    "brakingMaxBrightness": 1.0,
+    "brakingGamma": 1.6,
+    "brakingHoldDurationS": 2.0,
+    "brakingFadeDurationS": 1.0,
+    "useBoschCorroboration": false
+  },
+  "scenarios": [
+    {
+      "name": "hard_stop",
+      "description": "Hard brake from 22 km/h to stop through hold and fade to IDLE",
+      "ticks": [
+        {
+          "timestampMs": 0,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 20,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 40,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 60,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 80,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 100,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 120,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.2996
+        },
+        {
+          "timestampMs": 140,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3092
+        },
+        {
+          "timestampMs": 160,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3188
+        },
+        {
+          "timestampMs": 180,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3284
+        },
+        {
+          "timestampMs": 200,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.338
+        },
+        {
+          "timestampMs": 220,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3476
+        },
+        {
+          "timestampMs": 240,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3572
+        },
+        {
+          "timestampMs": 260,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3668
+        },
+        {
+          "timestampMs": 280,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3764
+        },
+        {
+          "timestampMs": 300,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.386
+        },
+        {
+          "timestampMs": 320,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3956
+        },
+        {
+          "timestampMs": 340,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4052
+        },
+        {
+          "timestampMs": 360,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4148
+        },
+        {
+          "timestampMs": 380,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4244
+        },
+        {
+          "timestampMs": 400,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.434
+        },
+        {
+          "timestampMs": 420,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 22.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4436
+        },
+        {
+          "timestampMs": 440,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 21.4359,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4532
+        },
+        {
+          "timestampMs": 460,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 20.8718,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4628
+        },
+        {
+          "timestampMs": 480,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 20.3077,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4724
+        },
+        {
+          "timestampMs": 500,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 19.7436,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.482
+        },
+        {
+          "timestampMs": 520,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 19.1795,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4916
+        },
+        {
+          "timestampMs": 540,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 18.6154,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5012
+        },
+        {
+          "timestampMs": 560,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 18.0513,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5108
+        },
+        {
+          "timestampMs": 580,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 17.4872,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5204
+        },
+        {
+          "timestampMs": 600,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 16.9231,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 620,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 16.359,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.6814
+        },
+        {
+          "timestampMs": 640,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 15.7949,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.6842
+        },
+        {
+          "timestampMs": 660,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 15.2308,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.688
+        },
+        {
+          "timestampMs": 680,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 14.6667,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.6927
+        },
+        {
+          "timestampMs": 700,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 14.1026,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.6982
+        },
+        {
+          "timestampMs": 720,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 13.5385,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.7044
+        },
+        {
+          "timestampMs": 740,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 12.9744,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.7112
+        },
+        {
+          "timestampMs": 760,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 12.4103,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.7186
+        },
+        {
+          "timestampMs": 780,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 11.8462,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.7266
+        },
+        {
+          "timestampMs": 800,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 11.2821,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.7352
+        },
+        {
+          "timestampMs": 820,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 10.7179,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.7443
+        },
+        {
+          "timestampMs": 840,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 10.1538,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.7539
+        },
+        {
+          "timestampMs": 860,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 9.5897,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.764
+        },
+        {
+          "timestampMs": 880,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 9.0256,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.7745
+        },
+        {
+          "timestampMs": 900,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 8.4615,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.7856
+        },
+        {
+          "timestampMs": 920,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 7.8974,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.797
+        },
+        {
+          "timestampMs": 940,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 7.3333,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.809
+        },
+        {
+          "timestampMs": 960,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 6.7692,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.8213
+        },
+        {
+          "timestampMs": 980,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 6.2051,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.8341
+        },
+        {
+          "timestampMs": 1000,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 5.641,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.8473
+        },
+        {
+          "timestampMs": 1020,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 5.0769,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.8608
+        },
+        {
+          "timestampMs": 1040,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 4.5128,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.8748
+        },
+        {
+          "timestampMs": 1060,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 3.9487,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.8892
+        },
+        {
+          "timestampMs": 1080,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 3.3846,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.9039
+        },
+        {
+          "timestampMs": 1100,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 2.8205,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.919
+        },
+        {
+          "timestampMs": 1120,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 2.2564,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.9345
+        },
+        {
+          "timestampMs": 1140,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 1.6923,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1160,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 1.1282,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1180,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 1.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1200,
+          "longitudinalAccel": -3.2,
+          "speedKmh": 1.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1220,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1240,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1260,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1280,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1300,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1320,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1340,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1360,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1380,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1400,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1420,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1440,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1460,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1480,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1500,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1520,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1540,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1560,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1580,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1600,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1620,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1640,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1660,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1680,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1700,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1720,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1740,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1760,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1780,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1800,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1820,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1840,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1860,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1880,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1900,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1920,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1940,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1960,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 1980,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2000,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2020,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2040,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2060,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2080,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2100,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2120,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2140,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2160,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2180,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2200,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2220,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2240,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2260,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2280,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2300,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2320,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2340,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2360,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2380,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2400,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2420,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2440,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2460,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2480,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2500,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2520,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2540,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2560,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2580,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2600,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2620,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2640,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2660,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2680,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2700,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2720,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2740,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2760,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2780,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2800,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2820,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2840,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2860,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2880,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2900,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2920,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2940,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2960,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 2980,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 3000,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 3020,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 3040,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 3060,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 3080,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 3100,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 3120,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 3140,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7509
+        },
+        {
+          "timestampMs": 3160,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7417
+        },
+        {
+          "timestampMs": 3180,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7325
+        },
+        {
+          "timestampMs": 3200,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7232
+        },
+        {
+          "timestampMs": 3220,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.714
+        },
+        {
+          "timestampMs": 3240,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.7048
+        },
+        {
+          "timestampMs": 3260,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.6956
+        },
+        {
+          "timestampMs": 3280,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.6864
+        },
+        {
+          "timestampMs": 3300,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.6771
+        },
+        {
+          "timestampMs": 3320,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.6679
+        },
+        {
+          "timestampMs": 3340,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.6587
+        },
+        {
+          "timestampMs": 3360,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.6495
+        },
+        {
+          "timestampMs": 3380,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.6403
+        },
+        {
+          "timestampMs": 3400,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.6311
+        },
+        {
+          "timestampMs": 3420,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.6218
+        },
+        {
+          "timestampMs": 3440,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.6126
+        },
+        {
+          "timestampMs": 3460,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.6034
+        },
+        {
+          "timestampMs": 3480,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.5942
+        },
+        {
+          "timestampMs": 3500,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.585
+        },
+        {
+          "timestampMs": 3520,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.5757
+        },
+        {
+          "timestampMs": 3540,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.5665
+        },
+        {
+          "timestampMs": 3560,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.5573
+        },
+        {
+          "timestampMs": 3580,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.5481
+        },
+        {
+          "timestampMs": 3600,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.5389
+        },
+        {
+          "timestampMs": 3620,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.5297
+        },
+        {
+          "timestampMs": 3640,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.5204
+        },
+        {
+          "timestampMs": 3660,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.5112
+        },
+        {
+          "timestampMs": 3680,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.502
+        },
+        {
+          "timestampMs": 3700,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.4928
+        },
+        {
+          "timestampMs": 3720,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.4836
+        },
+        {
+          "timestampMs": 3740,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.4744
+        },
+        {
+          "timestampMs": 3760,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.4651
+        },
+        {
+          "timestampMs": 3780,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.4559
+        },
+        {
+          "timestampMs": 3800,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.4467
+        },
+        {
+          "timestampMs": 3820,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.4375
+        },
+        {
+          "timestampMs": 3840,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.4283
+        },
+        {
+          "timestampMs": 3860,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.419
+        },
+        {
+          "timestampMs": 3880,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.4098
+        },
+        {
+          "timestampMs": 3900,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.4006
+        },
+        {
+          "timestampMs": 3920,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.3914
+        },
+        {
+          "timestampMs": 3940,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.3822
+        },
+        {
+          "timestampMs": 3960,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.373
+        },
+        {
+          "timestampMs": 3980,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.3637
+        },
+        {
+          "timestampMs": 4000,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.3545
+        },
+        {
+          "timestampMs": 4020,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.3453
+        },
+        {
+          "timestampMs": 4040,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.3361
+        },
+        {
+          "timestampMs": 4060,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.3269
+        },
+        {
+          "timestampMs": 4080,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.3177
+        },
+        {
+          "timestampMs": 4100,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.3084
+        },
+        {
+          "timestampMs": 4120,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "BRAKING_HOLD",
+          "expectedBrightness": 0.2992
+        },
+        {
+          "timestampMs": 4140,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2992
+        },
+        {
+          "timestampMs": 4160,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2989
+        },
+        {
+          "timestampMs": 4180,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2986
+        },
+        {
+          "timestampMs": 4200,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2983
+        },
+        {
+          "timestampMs": 4220,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.298
+        },
+        {
+          "timestampMs": 4240,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2977
+        },
+        {
+          "timestampMs": 4260,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2974
+        },
+        {
+          "timestampMs": 4280,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2971
+        },
+        {
+          "timestampMs": 4300,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2968
+        },
+        {
+          "timestampMs": 4320,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2965
+        },
+        {
+          "timestampMs": 4340,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2961
+        },
+        {
+          "timestampMs": 4360,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2958
+        },
+        {
+          "timestampMs": 4380,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2955
+        },
+        {
+          "timestampMs": 4400,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2952
+        },
+        {
+          "timestampMs": 4420,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2949
+        },
+        {
+          "timestampMs": 4440,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2946
+        },
+        {
+          "timestampMs": 4460,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2943
+        },
+        {
+          "timestampMs": 4480,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.294
+        },
+        {
+          "timestampMs": 4500,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.2937
+        }
+      ]
+    },
+    {
+      "name": "road_bump_rejection",
+      "description": "Sub-debounce road bumps rejected while cruising",
+      "ticks": [
+        {
+          "timestampMs": 0,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 20,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 40,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 60,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 80,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.2996
+        },
+        {
+          "timestampMs": 100,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3092
+        },
+        {
+          "timestampMs": 120,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3188
+        },
+        {
+          "timestampMs": 140,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3284
+        },
+        {
+          "timestampMs": 160,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.338
+        },
+        {
+          "timestampMs": 180,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3476
+        },
+        {
+          "timestampMs": 200,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3572
+        },
+        {
+          "timestampMs": 220,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3668
+        },
+        {
+          "timestampMs": 240,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3764
+        },
+        {
+          "timestampMs": 260,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.386
+        },
+        {
+          "timestampMs": 280,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3956
+        },
+        {
+          "timestampMs": 300,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4052
+        },
+        {
+          "timestampMs": 320,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4148
+        },
+        {
+          "timestampMs": 340,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4244
+        },
+        {
+          "timestampMs": 360,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.434
+        },
+        {
+          "timestampMs": 380,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4436
+        },
+        {
+          "timestampMs": 400,
+          "longitudinalAccel": -3.8,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4532
+        },
+        {
+          "timestampMs": 420,
+          "longitudinalAccel": -3.8,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4628
+        },
+        {
+          "timestampMs": 440,
+          "longitudinalAccel": -3.8,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4724
+        },
+        {
+          "timestampMs": 460,
+          "longitudinalAccel": -3.8,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.482
+        },
+        {
+          "timestampMs": 480,
+          "longitudinalAccel": -3.8,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4916
+        },
+        {
+          "timestampMs": 500,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5012
+        },
+        {
+          "timestampMs": 520,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5108
+        },
+        {
+          "timestampMs": 540,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5204
+        },
+        {
+          "timestampMs": 560,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 580,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 600,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 620,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 640,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 660,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 680,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 700,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 720,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 740,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 760,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 780,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 800,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 820,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 840,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 860,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 880,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 900,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 920,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 940,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 960,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 980,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1000,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1020,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1040,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1060,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1080,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1100,
+          "longitudinalAccel": -3.8,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1120,
+          "longitudinalAccel": -3.8,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1140,
+          "longitudinalAccel": -3.8,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1160,
+          "longitudinalAccel": -3.8,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1180,
+          "longitudinalAccel": -3.8,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1200,
+          "longitudinalAccel": -3.8,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1220,
+          "longitudinalAccel": -3.8,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1240,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1260,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1280,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1300,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1320,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1340,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1360,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1380,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1400,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1420,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1440,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1460,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1480,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1500,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1520,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1540,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1560,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1580,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1600,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1620,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1640,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1660,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1680,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1700,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1720,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1740,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1760,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1780,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1800,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1820,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1840,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1860,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1880,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1900,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1920,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1940,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1960,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1980,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2000,
+          "longitudinalAccel": 0.0,
+          "speedKmh": 18.5,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        }
+      ]
+    },
+    {
+      "name": "slow_roll_to_idle",
+      "description": "Coasting through hysteresis band into IDLE entry fade",
+      "ticks": [
+        {
+          "timestampMs": 0,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 20,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 40,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 60,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 80,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 100,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.2996
+        },
+        {
+          "timestampMs": 120,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3092
+        },
+        {
+          "timestampMs": 140,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3188
+        },
+        {
+          "timestampMs": 160,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3284
+        },
+        {
+          "timestampMs": 180,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.338
+        },
+        {
+          "timestampMs": 200,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3476
+        },
+        {
+          "timestampMs": 220,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3572
+        },
+        {
+          "timestampMs": 240,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3668
+        },
+        {
+          "timestampMs": 260,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3764
+        },
+        {
+          "timestampMs": 280,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.386
+        },
+        {
+          "timestampMs": 300,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3956
+        },
+        {
+          "timestampMs": 320,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4052
+        },
+        {
+          "timestampMs": 340,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4148
+        },
+        {
+          "timestampMs": 360,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4244
+        },
+        {
+          "timestampMs": 380,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.434
+        },
+        {
+          "timestampMs": 400,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4436
+        },
+        {
+          "timestampMs": 420,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4532
+        },
+        {
+          "timestampMs": 440,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4628
+        },
+        {
+          "timestampMs": 460,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4724
+        },
+        {
+          "timestampMs": 480,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.482
+        },
+        {
+          "timestampMs": 500,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4916
+        },
+        {
+          "timestampMs": 520,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5012
+        },
+        {
+          "timestampMs": 540,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5108
+        },
+        {
+          "timestampMs": 560,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5204
+        },
+        {
+          "timestampMs": 580,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 600,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 620,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 640,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 660,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 680,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 14.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 700,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 720,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 740,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 760,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 780,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 800,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 820,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 840,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 860,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 880,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 900,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 920,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 940,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 960,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 980,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1000,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1020,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1040,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1060,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1080,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1100,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1120,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1140,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1160,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1180,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1200,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1220,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1240,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1260,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1280,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 3.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1300,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 1320,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.522
+        },
+        {
+          "timestampMs": 1340,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.514
+        },
+        {
+          "timestampMs": 1360,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.506
+        },
+        {
+          "timestampMs": 1380,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.498
+        },
+        {
+          "timestampMs": 1400,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.49
+        },
+        {
+          "timestampMs": 1420,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.482
+        },
+        {
+          "timestampMs": 1440,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.474
+        },
+        {
+          "timestampMs": 1460,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.466
+        },
+        {
+          "timestampMs": 1480,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.458
+        },
+        {
+          "timestampMs": 1500,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.45
+        },
+        {
+          "timestampMs": 1520,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.442
+        },
+        {
+          "timestampMs": 1540,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.434
+        },
+        {
+          "timestampMs": 1560,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.426
+        },
+        {
+          "timestampMs": 1580,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.418
+        },
+        {
+          "timestampMs": 1600,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.41
+        },
+        {
+          "timestampMs": 1620,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.402
+        },
+        {
+          "timestampMs": 1640,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.394
+        },
+        {
+          "timestampMs": 1660,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.386
+        },
+        {
+          "timestampMs": 1680,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.378
+        },
+        {
+          "timestampMs": 1700,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.37
+        },
+        {
+          "timestampMs": 1720,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.362
+        },
+        {
+          "timestampMs": 1740,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.354
+        },
+        {
+          "timestampMs": 1760,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.346
+        },
+        {
+          "timestampMs": 1780,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.338
+        },
+        {
+          "timestampMs": 1800,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.33
+        },
+        {
+          "timestampMs": 1820,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.322
+        },
+        {
+          "timestampMs": 1840,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.314
+        },
+        {
+          "timestampMs": 1860,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.306
+        },
+        {
+          "timestampMs": 1880,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.298
+        },
+        {
+          "timestampMs": 1900,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 1920,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 1940,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 1960,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 1980,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2000,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2020,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2040,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2060,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2080,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2100,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2120,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2140,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2160,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2180,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2200,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2220,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2240,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2260,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2280,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2300,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2320,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2340,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2360,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2380,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 2400,
+          "longitudinalAccel": -0.3,
+          "speedKmh": 1.2,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        }
+      ]
+    },
+    {
+      "name": "brake_then_release",
+      "description": "Braking with brief mid-brake easing followed by release to CRUISING",
+      "ticks": [
+        {
+          "timestampMs": 0,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 20,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 40,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 60,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 0.0,
+          "expectedState": "IDLE",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 80,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.29
+        },
+        {
+          "timestampMs": 100,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.2996
+        },
+        {
+          "timestampMs": 120,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3092
+        },
+        {
+          "timestampMs": 140,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3188
+        },
+        {
+          "timestampMs": 160,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3284
+        },
+        {
+          "timestampMs": 180,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.338
+        },
+        {
+          "timestampMs": 200,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3476
+        },
+        {
+          "timestampMs": 220,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3572
+        },
+        {
+          "timestampMs": 240,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3668
+        },
+        {
+          "timestampMs": 260,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3764
+        },
+        {
+          "timestampMs": 280,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.386
+        },
+        {
+          "timestampMs": 300,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.3956
+        },
+        {
+          "timestampMs": 320,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4052
+        },
+        {
+          "timestampMs": 340,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4148
+        },
+        {
+          "timestampMs": 360,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4244
+        },
+        {
+          "timestampMs": 380,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 25.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.434
+        },
+        {
+          "timestampMs": 400,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4436
+        },
+        {
+          "timestampMs": 420,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4532
+        },
+        {
+          "timestampMs": 440,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4628
+        },
+        {
+          "timestampMs": 460,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4724
+        },
+        {
+          "timestampMs": 480,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.482
+        },
+        {
+          "timestampMs": 500,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.4916
+        },
+        {
+          "timestampMs": 520,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5012
+        },
+        {
+          "timestampMs": 540,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5108
+        },
+        {
+          "timestampMs": 560,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5204
+        },
+        {
+          "timestampMs": 580,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 600,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 620,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 640,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 660,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 680,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 700,
+          "longitudinalAccel": -2.8,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 720,
+          "longitudinalAccel": -0.2,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 740,
+          "longitudinalAccel": -0.2,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 760,
+          "longitudinalAccel": -0.2,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 780,
+          "longitudinalAccel": -0.2,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 800,
+          "longitudinalAccel": -0.2,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 820,
+          "longitudinalAccel": -0.2,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 840,
+          "longitudinalAccel": -0.2,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 860,
+          "longitudinalAccel": -0.2,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 880,
+          "longitudinalAccel": -0.2,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 900,
+          "longitudinalAccel": -0.2,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 920,
+          "longitudinalAccel": -2.6,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 940,
+          "longitudinalAccel": -2.6,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 960,
+          "longitudinalAccel": -2.6,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 980,
+          "longitudinalAccel": -2.6,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1000,
+          "longitudinalAccel": -2.6,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1020,
+          "longitudinalAccel": -2.6,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1040,
+          "longitudinalAccel": -2.6,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1060,
+          "longitudinalAccel": -2.6,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1080,
+          "longitudinalAccel": -2.6,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1100,
+          "longitudinalAccel": -2.6,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1120,
+          "longitudinalAccel": -2.6,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1140,
+          "longitudinalAccel": -2.6,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1160,
+          "longitudinalAccel": -2.6,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1180,
+          "longitudinalAccel": -2.6,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1200,
+          "longitudinalAccel": -2.6,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1220,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1240,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1260,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1280,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1300,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1320,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1340,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1360,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1380,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 16.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1400,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1420,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1440,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1460,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1480,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1500,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1520,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1540,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1560,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "BRAKING",
+          "expectedBrightness": 0.68
+        },
+        {
+          "timestampMs": 1580,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.56
+        },
+        {
+          "timestampMs": 1600,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5588
+        },
+        {
+          "timestampMs": 1620,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5576
+        },
+        {
+          "timestampMs": 1640,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5564
+        },
+        {
+          "timestampMs": 1660,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5552
+        },
+        {
+          "timestampMs": 1680,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.554
+        },
+        {
+          "timestampMs": 1700,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5528
+        },
+        {
+          "timestampMs": 1720,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5516
+        },
+        {
+          "timestampMs": 1740,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5504
+        },
+        {
+          "timestampMs": 1760,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5492
+        },
+        {
+          "timestampMs": 1780,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.548
+        },
+        {
+          "timestampMs": 1800,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5468
+        },
+        {
+          "timestampMs": 1820,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5456
+        },
+        {
+          "timestampMs": 1840,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5444
+        },
+        {
+          "timestampMs": 1860,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5432
+        },
+        {
+          "timestampMs": 1880,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.542
+        },
+        {
+          "timestampMs": 1900,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5408
+        },
+        {
+          "timestampMs": 1920,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5396
+        },
+        {
+          "timestampMs": 1940,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5384
+        },
+        {
+          "timestampMs": 1960,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5372
+        },
+        {
+          "timestampMs": 1980,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.536
+        },
+        {
+          "timestampMs": 2000,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5348
+        },
+        {
+          "timestampMs": 2020,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5336
+        },
+        {
+          "timestampMs": 2040,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5324
+        },
+        {
+          "timestampMs": 2060,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.5312
+        },
+        {
+          "timestampMs": 2080,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2100,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2120,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2140,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2160,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2180,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2200,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2220,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2240,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2260,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2280,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2300,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2320,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2340,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2360,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2380,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2400,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2420,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2440,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2460,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2480,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2500,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2520,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2540,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2560,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2580,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        },
+        {
+          "timestampMs": 2600,
+          "longitudinalAccel": 0.1,
+          "speedKmh": 18.0,
+          "expectedState": "CRUISING",
+          "expectedBrightness": 0.53
+        }
+      ]
+    }
+  ]
+}

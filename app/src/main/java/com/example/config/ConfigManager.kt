@@ -7,10 +7,9 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.statemachine.StateMachineConfig
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "prettynights_config")
@@ -28,7 +27,7 @@ data class WledHardwareConfig(
     val ch2ColorOrder: Int = 0,
     val ch2Reversed: Boolean = false,
     val ch2ZoneName: String = "Rear Tail (IO2)",
-    val io13Role: String = "PUSHBUTTON", // "PUSHBUTTON", "REED_SWITCH", "STRIP_CH3", "DISABLED"
+    val io13Role: Io13PinRole = Io13PinRole.PUSHBUTTON,
     val ch3LedCount: Int = 20
 )
 
@@ -40,7 +39,7 @@ data class WledLook(
     val speed: Int? = null, // WLED ranges from 0-255, default none
     val intensity: Int? = null, // 0-255, default none
     val transitionMs: Int = 300, // transition is configured in milliseconds
-    val targetSegments: String = "BOTH" // "BOTH", "SEG_0_IO16", "SEG_1_IO2"
+    val targetSegments: SegmentTarget = SegmentTarget.BOTH
 )
 
 data class AppConfig(
@@ -49,12 +48,12 @@ data class AppConfig(
     val lockToLocalNetwork: Boolean = true,
     val usbSerialFallbackEnabled: Boolean = true,
     val logOnlyMode: Boolean = false,
-    val speedSource: String = "GPS_ONLY", // "GPS_ONLY", "BOSCH_PREFERRED", "BOSCH_ONLY"
-    val sensorAxis: String = "Y", // "X", "Y", "Z"
+    val speedSource: SpeedSourceMode = SpeedSourceMode.GPS_ONLY,
+    val sensorAxis: SensorAxis = SensorAxis.Y,
     val sensorSign: Int = -1, // 1 or -1
     val stateMachine: StateMachineConfig = StateMachineConfig(),
     val hardwareConfig: WledHardwareConfig = WledHardwareConfig(),
-    
+
     // Default Looks
     val idleLook: WledLook = WledLook(
         effectId = 0,
@@ -90,34 +89,34 @@ data class AppConfig(
     )
 )
 
-class ConfigManager(private val context: Context) {
-    private val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
-    private val adapter = moshi.adapter(AppConfig::class.java)
-    
+open class ConfigManager(private val context: Context? = null) {
+    private val adapter = AppJson.moshi.adapter(AppConfig::class.java)
+
     private val configKey = stringPreferencesKey("app_config_json")
 
-    val configFlow: Flow<AppConfig> = context.dataStore.data
-        .map { preferences ->
+    open val configFlow: Flow<AppConfig> = context?.dataStore?.data
+        ?.map { preferences ->
             val json = preferences[configKey]
             if (json == null) {
                 AppConfig()
             } else {
                 try {
                     adapter.fromJson(json) ?: AppConfig()
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     AppConfig()
                 }
             }
-        }
+        } ?: flowOf(AppConfig())
 
-    suspend fun getConfigSnapshot(): AppConfig {
+    open suspend fun getConfigSnapshot(): AppConfig {
         return configFlow.first()
     }
 
-    suspend fun updateConfig(update: (AppConfig) -> AppConfig) {
-        context.dataStore.edit { preferences ->
+    open suspend fun updateConfig(update: (AppConfig) -> AppConfig) {
+        val ctx = context ?: return
+        ctx.dataStore.edit { preferences ->
             val current = preferences[configKey]?.let {
-                try { adapter.fromJson(it) } catch (e: Exception) { null }
+                try { adapter.fromJson(it) } catch (_: Exception) { null }
             } ?: AppConfig()
             val updated = update(current)
             preferences[configKey] = adapter.toJson(updated)

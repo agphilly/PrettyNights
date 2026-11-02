@@ -7,11 +7,12 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.SystemClock
 import android.util.Log
-import com.example.PrettyNightsApp
 import com.example.config.AppConfig
+import com.example.config.AppJson
 import com.example.config.ConfigManager
 import com.example.config.RideMarkerType
 import com.example.config.SensorAxis
+import com.example.config.SpeedSourceMode
 import com.example.config.WledLook
 import com.example.logging.*
 import com.example.safety.LockController
@@ -21,48 +22,68 @@ import com.example.statemachine.RideStateMachine
 import com.example.statemachine.StateMachineOutput
 import com.example.statemachine.StateMachineTelemetry
 import com.example.wled.WledController
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
 
-class RideOrchestrator(
-    private val context: Context,
+open class RideOrchestrator(
+    private val context: Context? = null,
     private val configManager: ConfigManager,
     private val lockController: LockController,
     private val logRepository: LogRepository,
     private val speedProvider: SpeedProvider,
     private val wledController: WledController,
-    private val onSpeedSourceCached: (String) -> Unit = { source ->
-        try {
-            PrettyNightsApp.instance.cachedSpeedSource = source
-        } catch (_: Exception) {
-        }
-    }
+    private val onSpeedSourceCached: (SpeedSourceMode) -> Unit = {}
 ) : SensorEventListener {
 
     private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-    private val lifecycleMutex = Mutex()
-    private val intervalMutex = Mutex()
 
-    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-    private val accelerometer: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
+    private val sensorManager: SensorManager? =
+        context?.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+    private val accelerometer: Sensor? =
+        sensorManager?.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
 
-    // Reusable Moshi instance & adapter (instantiated once instead of per WLED interval transition)
-    private val moshi: Moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
-    private val wledLookAdapter = moshi.adapter(WledLook::class.java)
+    private val wledLookAdapter = AppJson.moshi.adapter(WledLook::class.java)
+
+    // --- Sequential Interval Operations Channel (Item 1) ---
+    private sealed interface IntervalOp {
+        data class OpenState(val entity: StateIntervalEntity) : IntervalOp
+        data class CloseState(val endMs: Long, val endBrightness: Float) : IntervalOp
+        data class OpenWled(val entity: WledIntervalEntity) : IntervalOp
+        data class CloseWled(val endMs: Long) : IntervalOp
+        class Flush(val done: CompletableDeferred<Unit>) : IntervalOp
+    }
+
+    private val intervalOps = Channel<IntervalOp>(Channel.UNLIMITED)
+
+    // --- Sequential Lifecycle Command Queue (Item 2) ---
+    private sealed interface LifecycleCmd {
+        data object Start : LifecycleCmd
+        data object Stop : LifecycleCmd
+        class Barrier(val done: CompletableDeferred<Unit>) : LifecycleCmd
+    }
+
+    private val lifecycleCmds = Channel<LifecycleCmd>(Channel.UNLIMITED)
+
+    private val _isRunning = MutableStateFlow(false)
+    open val isRunningFlow: StateFlow<Boolean> = _isRunning.asStateFlow()
+    open val isRunning: Boolean
+        get() = _isRunning.value
 
     // Cross-thread session & state machine properties
     @Volatile
     private var activeSessionId: Long? = null
 
-    @Volatile
-    var isRunning: Boolean = false
+    val currentSessionId: Long?
+        get() = activeSessionId
+
+    private val _registeredSensorListeners = AtomicInteger(0)
+    val registeredSensorListenerCount: Int
+        get() = _registeredSensorListeners.get()
 
     @Volatile
     private var activeConfig: AppConfig = AppConfig()
@@ -81,17 +102,12 @@ class RideOrchestrator(
     @Volatile
     private var lastSendTimeMs: Long = 0L
 
-    // Synchronous transition tracking on sensor thread; DB writes serialized via intervalMutex
+    // Synchronous transition tracking on sensor thread; DB writes serialized via intervalOps channel
     @Volatile
     private var lastLoggedState: RideState? = null
 
     @Volatile
     private var lastLoggedLook: WledLook? = null
-
-    private var currentStateIntervalId: Long? = null
-    private var currentWledIntervalId: Long? = null
-    private var activeStateInterval: StateIntervalEntity? = null
-    private var activeWledInterval: WledIntervalEntity? = null
 
     // For IMU sample high-speed buffer batch-writing to Room to prevent database lag
     private val imuSampleBuffer = ConcurrentLinkedQueue<ImuSampleEntity>()
@@ -101,13 +117,71 @@ class RideOrchestrator(
     private var onDiagnosticsUpdate: ((String, RideState, Float) -> Unit)? = null
 
     private val _telemetryFlow = MutableStateFlow<StateMachineTelemetry?>(null)
-    val telemetryFlow: StateFlow<StateMachineTelemetry?> = _telemetryFlow.asStateFlow()
+    open val telemetryFlow: StateFlow<StateMachineTelemetry?> = _telemetryFlow.asStateFlow()
 
     private val _markerCountFlow = MutableStateFlow(0)
-    val markerCountFlow: StateFlow<Int> = _markerCountFlow.asStateFlow()
+    open val markerCountFlow: StateFlow<Int> = _markerCountFlow.asStateFlow()
 
     private val _lastMarkerLabelFlow = MutableStateFlow<String?>(null)
-    val lastMarkerLabelFlow: StateFlow<String?> = _lastMarkerLabelFlow.asStateFlow()
+    open val lastMarkerLabelFlow: StateFlow<String?> = _lastMarkerLabelFlow.asStateFlow()
+
+    init {
+        // Single interval writer coroutine: owns openState and openWled exclusively
+        coroutineScope.launch(Dispatchers.IO) {
+            var openState: StateIntervalEntity? = null
+            var openWled: WledIntervalEntity? = null
+            for (op in intervalOps) {
+                try {
+                    when (op) {
+                        is IntervalOp.OpenState -> {
+                            val id = logRepository.insertStateInterval(op.entity)
+                            openState = op.entity.copy(id = id)
+                        }
+                        is IntervalOp.CloseState -> {
+                            openState?.let {
+                                logRepository.updateStateInterval(
+                                    it.copy(
+                                        endTimeMonotonicMs = op.endMs,
+                                        endBrightness = op.endBrightness
+                                    )
+                                )
+                            }
+                            openState = null
+                        }
+                        is IntervalOp.OpenWled -> {
+                            val id = logRepository.insertWledInterval(op.entity)
+                            openWled = op.entity.copy(id = id)
+                        }
+                        is IntervalOp.CloseWled -> {
+                            openWled?.let {
+                                logRepository.updateWledInterval(
+                                    it.copy(endTimeMonotonicMs = op.endMs)
+                                )
+                            }
+                            openWled = null
+                        }
+                        is IntervalOp.Flush -> op.done.complete(Unit)
+                    }
+                } catch (e: Exception) {
+                    Log.e("RideOrchestrator", "Interval writer error: ${e.message}")
+                    if (op is IntervalOp.Flush) {
+                        op.done.complete(Unit)
+                    }
+                }
+            }
+        }
+
+        // Single lifecycle consumer loop: processes Start and Stop strictly in order
+        coroutineScope.launch {
+            for (cmd in lifecycleCmds) {
+                when (cmd) {
+                    LifecycleCmd.Start -> if (activeSessionId == null) doStart()
+                    LifecycleCmd.Stop -> if (activeSessionId != null) doStop()
+                    is LifecycleCmd.Barrier -> cmd.done.complete(Unit)
+                }
+            }
+        }
+    }
 
     // Listener for Bosch Live Data Interface V1.0 packets (always logged regardless of speedSource or WLED mode)
     private val boschPacketListener: (BoschLiveDataPacket, BoschLiveDataState) -> Unit = { packet, _ ->
@@ -148,24 +222,19 @@ class RideOrchestrator(
         }
     }
 
-    fun setDiagnosticsListener(listener: (String, RideState, Float) -> Unit) {
+    open fun setDiagnosticsListener(listener: (String, RideState, Float) -> Unit) {
         onDiagnosticsUpdate = listener
     }
 
-    fun recordRideMarker(markerType: RideMarkerType, note: String = "") {
-        recordRideMarker(markerType.wireValue, note)
-    }
-
     /**
-     * Records a live in-ride event marker (e.g., HARD_BRAKE, LIGHT_BRAKE, ROAD_BUMP, BOSCH_GLITCH)
-     * during any active ride (both WLED-enabled and Log-Only rides).
+     * Records a live in-ride event marker during any active ride (both WLED-enabled and Log-Only rides).
      */
-    fun recordRideMarker(markerType: String, note: String = "") {
+    open fun recordRideMarker(markerType: RideMarkerType, note: String = "") {
         val sessionId = activeSessionId ?: return
         if (!isRunning) return
         val nowMono = SystemClock.elapsedRealtime()
         _markerCountFlow.value = _markerCountFlow.value + 1
-        _lastMarkerLabelFlow.value = markerType
+        _lastMarkerLabelFlow.value = markerType.wireValue
 
         coroutineScope.launch(Dispatchers.IO) {
             try {
@@ -183,12 +252,36 @@ class RideOrchestrator(
         }
     }
 
-    fun start() {
-        if (isRunning) return
-        isRunning = true
+    open fun start() {
+        lifecycleCmds.trySend(LifecycleCmd.Start)
+    }
+
+    open fun stop() {
+        lifecycleCmds.trySend(LifecycleCmd.Stop)
+    }
+
+    /**
+     * Suspends until all queued start/stop commands and interval writes up to this point have completed.
+     */
+    suspend fun awaitIdle() {
+        val lifecycleDone = CompletableDeferred<Unit>()
+        lifecycleCmds.send(LifecycleCmd.Barrier(lifecycleDone))
+        lifecycleDone.await()
+
+        val intervalsDone = CompletableDeferred<Unit>()
+        intervalOps.send(IntervalOp.Flush(intervalsDone))
+        intervalsDone.await()
+    }
+
+    private suspend fun doStart() {
         _markerCountFlow.value = 0
         _lastMarkerLabelFlow.value = null
 
+        val freshConfig = configManager.getConfigSnapshot()
+        activeConfig = freshConfig
+        onSpeedSourceCached(freshConfig.speedSource)
+
+        configCollectionJob?.cancel()
         configCollectionJob = coroutineScope.launch {
             configManager.configFlow.collect { config ->
                 activeConfig = config
@@ -196,117 +289,124 @@ class RideOrchestrator(
             }
         }
 
-        coroutineScope.launch {
-            lifecycleMutex.withLock {
-                // If stop() was invoked before start() acquired lifecycleMutex, abort startup cleanly
-                if (!isRunning) return@withLock
+        val nowWallMs = System.currentTimeMillis()
+        val nowMonoMs = SystemClock.elapsedRealtime()
 
-                val freshConfig = configManager.getConfigSnapshot()
-                activeConfig = freshConfig
-                onSpeedSourceCached(freshConfig.speedSource)
-                val nowWallMs = System.currentTimeMillis()
-                val nowMonoMs = SystemClock.elapsedRealtime()
+        // 1. Initialize Logging Session in Room BEFORE starting providers so initial packets are captured
+        val sessionId = logRepository.startSession(
+            startTimeMillis = nowWallMs,
+            startMonotonicMs = nowMonoMs,
+            logOnlyMode = freshConfig.logOnlyMode,
+            configuredSpeedSource = freshConfig.speedSource
+        )
+        activeSessionId = sessionId
 
-                // 1. Initialize Logging Session in Room BEFORE starting providers so initial packets are captured
-                val sessionId = logRepository.startSession(
-                    startTimeMillis = nowWallMs,
-                    startMonotonicMs = nowMonoMs,
-                    logOnlyMode = freshConfig.logOnlyMode,
-                    configuredSpeedSource = freshConfig.speedSource
+        // 2. Register Bosch V1.0 packet listener & start speed providers via SpeedProvider contract
+        speedProvider.addBoschPacketListener(boschPacketListener)
+        speedProvider.start()
+
+        // 3. Reset State Machine
+        stateMachine.getAndResetState(nowMonoMs)
+        _telemetryFlow.value = enrichTelemetry(stateMachine.latestTelemetry, nowMonoMs)
+
+        // 4. Enqueue initial IDLE state interval & WLED interval sequentially
+        val initialLook = activeConfig.idleLook
+        lastLoggedState = RideState.IDLE
+        lastLoggedLook = initialLook
+        val initBrightness = activeConfig.stateMachine.idleBrightness
+        intervalOps.trySend(
+            IntervalOp.OpenState(
+                StateIntervalEntity(
+                    sessionId = sessionId,
+                    stateName = RideState.IDLE.name,
+                    startTimeMonotonicMs = nowMonoMs,
+                    startBrightness = initBrightness,
+                    endBrightness = initBrightness
                 )
-                activeSessionId = sessionId
+            )
+        )
+        intervalOps.trySend(
+            IntervalOp.OpenWled(
+                WledIntervalEntity(
+                    sessionId = sessionId,
+                    stateName = RideState.IDLE.name,
+                    startTimeMonotonicMs = nowMonoMs,
+                    lookJson = wledLookAdapter.toJson(initialLook)
+                )
+            )
+        )
 
-                // 2. Register Bosch V1.0 packet listener & start speed providers via SpeedProvider contract
-                speedProvider.addBoschPacketListener(boschPacketListener)
-                speedProvider.start()
+        // 5. Send initial look to WLED (or skip HTTP if logOnlyMode == true)
+        sendToWled(initialLook, RideState.IDLE, initBrightness, nowMonoMs)
 
-                // 3. Reset State Machine
-                stateMachine.getAndResetState(nowMonoMs)
-                _telemetryFlow.value = enrichTelemetry(stateMachine.latestTelemetry, nowMonoMs)
-
-                // 4. Log initial IDLE state interval & WLED interval sequentially
-                val initialLook = activeConfig.idleLook
-                lastLoggedState = RideState.IDLE
-                lastLoggedLook = initialLook
-                logStateIntervalEntry(sessionId, RideState.IDLE, nowMonoMs, activeConfig.stateMachine.idleBrightness)
-
-                // 5. Send initial look to WLED (or record virtual WLED interval if logOnlyMode == true)
-                sendToWled(initialLook, RideState.IDLE, activeConfig.stateMachine.idleBrightness, nowMonoMs)
-                logWledIntervalEntry(sessionId, RideState.IDLE, initialLook, nowMonoMs)
-
-                // 6. Register Sensors
-                accelerometer?.let {
-                    sensorManager.registerListener(this@RideOrchestrator, it, SensorManager.SENSOR_DELAY_GAME)
-                }
-
-                // 7. Start Background Batch Writer for high-rate IMU datasets
-                startBatchWriter(sessionId)
-
-                updateLock(RideState.IDLE)
+        // 6. Register Sensors
+        if (sensorManager != null) {
+            accelerometer?.let {
+                sensorManager.registerListener(this@RideOrchestrator, it, SensorManager.SENSOR_DELAY_GAME)
             }
         }
+        _registeredSensorListeners.incrementAndGet()
+
+        // 7. Start Background Batch Writer for high-rate IMU datasets
+        startBatchWriter()
+
+        _isRunning.value = true
+        updateLock(RideState.IDLE)
     }
 
-    fun stop() {
-        if (!isRunning) return
-        isRunning = false
+    private suspend fun doStop() {
+        _isRunning.value = false
+        val nowMonoMs = SystemClock.elapsedRealtime()
 
-        coroutineScope.launch {
-            lifecycleMutex.withLock {
-                val nowMonoMs = SystemClock.elapsedRealtime()
+        // 1. Unregister Sensors
+        sensorManager?.unregisterListener(this@RideOrchestrator)
+        _registeredSensorListeners.updateAndGet { current -> (current - 1).coerceAtLeast(0) }
 
-                // 1. Unregister Sensors
-                sensorManager.unregisterListener(this@RideOrchestrator)
+        // 2. Unregister Bosch listener and stop speed providers
+        speedProvider.removeBoschPacketListener(boschPacketListener)
+        speedProvider.stop()
 
-                // 2. Unregister Bosch listener and stop speed providers
-                speedProvider.removeBoschPacketListener(boschPacketListener)
-                speedProvider.stop()
+        // 3. Close open Logging Intervals & flush remaining IMU samples
+        activeSessionId?.let { sessionId ->
+            intervalOps.trySend(IntervalOp.CloseState(nowMonoMs, stateMachine.lastOutputBrightness))
+            intervalOps.trySend(IntervalOp.CloseWled(nowMonoMs))
+            val flushed = CompletableDeferred<Unit>()
+            intervalOps.trySend(IntervalOp.Flush(flushed))
+            flushed.await()
 
-                // 3. Close open Logging Intervals & flush remaining IMU samples
-                activeSessionId?.let { sessionId ->
-                    closeStateInterval(nowMonoMs, stateMachine.lastOutputBrightness)
-                    closeWledInterval(nowMonoMs)
-
-                    // Wait for queued interval writes to finish before closing session
-                    intervalMutex.withLock {
-                        // Drain barrier ensuring open/close interval writes have completed
-                    }
-
-                    val remainingSamples = mutableListOf<ImuSampleEntity>()
-                    while (imuSampleBuffer.isNotEmpty()) {
-                        imuSampleBuffer.poll()?.let { remainingSamples.add(it) }
-                    }
-                    logRepository.insertImuSamples(remainingSamples)
-
-                    // Close Room Session Record
-                    logRepository.endSession(sessionId, nowMonoMs)
-                }
-
-                // 4. Reset safety state
-                lockController.forceUnlock()
-
-                // 5. Cancel batch logger coroutine
-                batchLoggingJob?.cancel()
-                batchLoggingJob = null
-
-                configCollectionJob?.cancel()
-                configCollectionJob = null
-
-                activeSessionId = null
-                lastSentLook = null
-                lastSentState = null
-                lastLoggedState = null
-                lastLoggedLook = null
-                lastSentBrightness = -1f
-                lastSendTimeMs = 0L
-                _markerCountFlow.value = 0
-                _lastMarkerLabelFlow.value = null
-
-                // Re-trigger static idle callback
-                onDiagnosticsUpdate?.invoke("Stopped", RideState.IDLE, 0f)
-                _telemetryFlow.value = null
+            val remainingSamples = mutableListOf<ImuSampleEntity>()
+            while (imuSampleBuffer.isNotEmpty()) {
+                imuSampleBuffer.poll()?.let { remainingSamples.add(it) }
             }
+            logRepository.insertImuSamples(remainingSamples)
+
+            // Close Room Session Record
+            logRepository.endSession(sessionId, nowMonoMs)
         }
+
+        // 4. Reset safety state
+        lockController.forceUnlock()
+
+        // 5. Cancel batch logger coroutine
+        batchLoggingJob?.cancel()
+        batchLoggingJob = null
+
+        configCollectionJob?.cancel()
+        configCollectionJob = null
+
+        activeSessionId = null
+        lastSentLook = null
+        lastSentState = null
+        lastLoggedState = null
+        lastLoggedLook = null
+        lastSentBrightness = -1f
+        lastSendTimeMs = 0L
+        _markerCountFlow.value = 0
+        _lastMarkerLabelFlow.value = null
+
+        // Re-trigger static idle callback
+        onDiagnosticsUpdate?.invoke("Stopped", RideState.IDLE, 0f)
+        _telemetryFlow.value = null
     }
 
     // --- ACCELEROMETER CALLBACKS (Runs at ~50Hz) ---
@@ -316,13 +416,23 @@ class RideOrchestrator(
         if (event.sensor.type != Sensor.TYPE_LINEAR_ACCELERATION) return
 
         val nowMono = SystemClock.elapsedRealtime()
+        onLinearAccelerationTick(
+            rawX = event.values[0],
+            rawY = event.values[1],
+            rawZ = event.values[2],
+            nowMono = nowMono
+        )
+    }
 
-        // Extract gravity-compensated linear acceleration based on Calibrated Axis
-        val rawX = event.values[0]
-        val rawY = event.values[1]
-        val rawZ = event.values[2]
+    fun onLinearAccelerationTick(
+        rawX: Float,
+        rawY: Float,
+        rawZ: Float,
+        nowMono: Long = SystemClock.elapsedRealtime()
+    ) {
+        if (!isRunning) return
 
-        val projectedAcceleration = when (SensorAxis.fromWireValue(activeConfig.sensorAxis)) {
+        val projectedAcceleration = when (activeConfig.sensorAxis) {
             SensorAxis.X -> rawX
             SensorAxis.Z -> rawZ
             SensorAxis.Y -> rawY
@@ -357,7 +467,7 @@ class RideOrchestrator(
                 accelY = rawY,
                 accelZ = rawZ,
                 fusedAcceleration = projectedAcceleration,
-                calibratedAxis = activeConfig.sensorAxis,
+                calibratedAxis = activeConfig.sensorAxis.wireValue,
                 calibratedSign = activeConfig.sensorSign,
                 speedKmh = currentSpeedKmh,
                 gpsSpeedKmh = gpsSpeedKmh,
@@ -369,7 +479,7 @@ class RideOrchestrator(
                 boschAmbientLux = boschLiveState?.ambientLux,
                 boschBatterySoc = boschLiveState?.batterySocPercent,
                 boschBikeLight = boschLiveState?.bikeLightRaw,
-                activeSpeedSource = activeSource,
+                activeSpeedSource = activeSource.name,
                 stateName = output.state.name
             )
             imuSampleBuffer.offer(sample)
@@ -410,7 +520,7 @@ class RideOrchestrator(
 
         return base.copy(
             logOnlyMode = activeConfig.logOnlyMode,
-            activeSpeedSource = speedProvider.activeSpeedSource,
+            activeSpeedSource = speedProvider.activeSpeedSource.name,
             gpsSpeedKmh = gpsSpeedKmh,
             boschSpeedKmh = boschSpeedKmh,
             boschAgeMs = boschAgeMs,
@@ -463,93 +573,43 @@ class RideOrchestrator(
     private fun evalAndLogIntervals(output: StateMachineOutput, look: WledLook, now: Long) {
         val sessionId = activeSessionId ?: return
 
-        // 1. Track State changes synchronously on sensor thread; serialize DB writes via intervalMutex
+        // 1. Track State changes synchronously on sensor thread; enqueue DB operations in order
         if (output.state != lastLoggedState) {
             lastLoggedState = output.state
-            closeStateInterval(now, output.brightness)
-            logStateIntervalEntry(sessionId, output.state, now, output.brightness)
+            intervalOps.trySend(IntervalOp.CloseState(now, output.brightness))
+            intervalOps.trySend(
+                IntervalOp.OpenState(
+                    StateIntervalEntity(
+                        sessionId = sessionId,
+                        stateName = output.state.name,
+                        startTimeMonotonicMs = now,
+                        startBrightness = output.brightness,
+                        endBrightness = output.brightness
+                    )
+                )
+            )
         }
 
-        // 2. Track WLED Look changes synchronously on sensor thread; serialize DB writes via intervalMutex
+        // 2. Track WLED Look changes synchronously on sensor thread; enqueue DB operations in order
         if (look != lastLoggedLook) {
             lastLoggedLook = look
-            closeWledInterval(now)
-            logWledIntervalEntry(sessionId, output.state, look, now)
-        }
-    }
-
-    private fun logStateIntervalEntry(sessionId: Long, state: RideState, now: Long, brightness: Float) {
-        val interval = StateIntervalEntity(
-            sessionId = sessionId,
-            stateName = state.name,
-            startTimeMonotonicMs = now,
-            startBrightness = brightness,
-            endBrightness = brightness
-        )
-        coroutineScope.launch {
-            intervalMutex.withLock {
-                activeStateInterval = interval
-                currentStateIntervalId = logRepository.insertStateInterval(interval)
-            }
-        }
-    }
-
-    private fun closeStateInterval(now: Long, brightness: Float) {
-        coroutineScope.launch {
-            intervalMutex.withLock {
-                val intervalId = currentStateIntervalId
-                val interval = activeStateInterval
-                if (intervalId != null && interval != null) {
-                    val closed = interval.copy(
-                        id = intervalId,
-                        endTimeMonotonicMs = now,
-                        endBrightness = brightness
+            intervalOps.trySend(IntervalOp.CloseWled(now))
+            intervalOps.trySend(
+                IntervalOp.OpenWled(
+                    WledIntervalEntity(
+                        sessionId = sessionId,
+                        stateName = output.state.name,
+                        startTimeMonotonicMs = now,
+                        lookJson = wledLookAdapter.toJson(look)
                     )
-                    logRepository.updateStateInterval(closed)
-                }
-                currentStateIntervalId = null
-                activeStateInterval = null
-            }
-        }
-    }
-
-    private fun logWledIntervalEntry(sessionId: Long, state: RideState, look: WledLook, now: Long) {
-        val lookJson = wledLookAdapter.toJson(look)
-        val interval = WledIntervalEntity(
-            sessionId = sessionId,
-            stateName = state.name,
-            startTimeMonotonicMs = now,
-            lookJson = lookJson
-        )
-        coroutineScope.launch {
-            intervalMutex.withLock {
-                activeWledInterval = interval
-                currentWledIntervalId = logRepository.insertWledInterval(interval)
-            }
-        }
-    }
-
-    private fun closeWledInterval(now: Long) {
-        coroutineScope.launch {
-            intervalMutex.withLock {
-                val intervalId = currentWledIntervalId
-                val interval = activeWledInterval
-                if (intervalId != null && interval != null) {
-                    val closed = interval.copy(
-                        id = intervalId,
-                        endTimeMonotonicMs = now
-                    )
-                    logRepository.updateWledInterval(closed)
-                }
-                currentWledIntervalId = null
-                activeWledInterval = null
-            }
+                )
+            )
         }
     }
 
     // --- HIGH SPEED IMU ROOM WRITER BATCH JOB ---
 
-    private fun startBatchWriter(sessionId: Long) {
+    private fun startBatchWriter() {
         batchLoggingJob?.cancel()
         batchLoggingJob = coroutineScope.launch {
             while (isActive) {

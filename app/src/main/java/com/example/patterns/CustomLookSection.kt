@@ -42,7 +42,7 @@ fun CustomLookSection(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                val activeTarget = SegmentTarget.fromWireValue(look.targetSegments)
+                val activeTarget = look.targetSegments
                 SegmentTarget.entries.forEach { target ->
                     val segKey = target.wireValue
                     val isSegSelected = activeTarget == target
@@ -55,7 +55,7 @@ fun CustomLookSection(
                                 else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
                             )
                             .clickable(enabled = !isLocked) {
-                                onLookChanged(look.copy(targetSegments = segKey))
+                                onLookChanged(look.copy(targetSegments = target))
                             }
                             .padding(vertical = 8.dp)
                             .testTag("seg_target_${state.name}_$segKey"),

@@ -3,12 +3,10 @@ package com.example.wled
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
+import com.example.config.AppJson
 import com.example.config.Io13PinRole
-import com.example.config.SegmentTarget
 import com.example.config.WledHardwareConfig
 import com.example.config.WledLook
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.flow.StateFlow
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
@@ -49,26 +47,25 @@ data class WledStatePayload(
     val seg: List<WledSegment>? = null
 )
 
-class WledController(context: Context? = null) {
+open class WledController(context: Context? = null) {
 
-    private val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
-    private val payloadAdapter = moshi.adapter(WledStatePayload::class.java)
+    private val payloadAdapter = AppJson.moshi.adapter(WledStatePayload::class.java)
 
     val networkTransport = WledNetworkTransport(context)
-    val transportState: StateFlow<WledTransportState> = networkTransport.transportState
+    open val transportState: StateFlow<WledTransportState> = networkTransport.transportState
 
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
-    fun updateTransportConfig(lockToLocalNetwork: Boolean, usbSerialFallbackEnabled: Boolean) {
+    open fun updateTransportConfig(lockToLocalNetwork: Boolean, usbSerialFallbackEnabled: Boolean) {
         networkTransport.lockToLocalNetwork = lockToLocalNetwork
         networkTransport.usbSerialFallbackEnabled = usbSerialFallbackEnabled
     }
 
-    fun refreshTransport(): WledTransportState {
+    open fun refreshTransport(): WledTransportState {
         return networkTransport.refreshTransportState()
     }
 
-    fun bindUdpSocket(socket: DatagramSocket): Boolean {
+    open fun bindUdpSocket(socket: DatagramSocket): Boolean {
         return networkTransport.bindUdpSocket(socket)
     }
 
@@ -77,7 +74,7 @@ class WledController(context: Context? = null) {
      * local network (USB-C Ethernet priority -> Wi-Fi Bound -> System Default) and records
      * round-trip latency in milliseconds.
      */
-    fun ping(host: String): Boolean {
+    open fun ping(host: String): Boolean {
         val url = cleanUrl(host, "/json/state")
         val request = Request.Builder()
             .url(url)
@@ -104,7 +101,7 @@ class WledController(context: Context? = null) {
     /**
      * Fetches live hardware & LED bus info from the WLED controller at /json/info
      */
-    fun fetchHardwareInfo(host: String): WledHardwareLiveInfo? {
+    open fun fetchHardwareInfo(host: String): WledHardwareLiveInfo? {
         val url = cleanUrl(host, "/json/info")
         val request = Request.Builder().url(url).get().build()
         val startMs = SystemClock.elapsedRealtime()
@@ -138,7 +135,7 @@ class WledController(context: Context? = null) {
      * Pushes the NaveiTech NV-LC616WL GPIO hardware setup (GPIO 16 Ch1, GPIO 2 Ch2, GPIO 13 Aux,
      * and maxpwr current limiter) to /json/cfg and partitions the logical segments on /json/state.
      */
-    fun pushHardwareAndSegments(host: String, hw: WledHardwareConfig): Boolean {
+    open fun pushHardwareAndSegments(host: String, hw: WledHardwareConfig): Boolean {
         val cfgPayload = buildHardwareCfgJson(hw)
         val segPayload = buildSegmentLayoutJson(hw)
 
@@ -201,7 +198,7 @@ class WledController(context: Context? = null) {
             nextStart += ch2Len
         }
 
-        val io13Role = Io13PinRole.fromWireValue(hw.io13Role)
+        val io13Role = hw.io13Role
 
         // Bus 2: Auxiliary IO13 as 3rd LED strip if selected
         if (io13Role == Io13PinRole.STRIP_CH3) {
@@ -280,7 +277,7 @@ class WledController(context: Context? = null) {
         }
 
         // Segment 2: Auxiliary IO13 if configured as 3rd LED strip
-        if (Io13PinRole.fromWireValue(hw.io13Role) == Io13PinRole.STRIP_CH3) {
+        if (hw.io13Role == Io13PinRole.STRIP_CH3) {
             segArray.put(
                 JSONObject().apply {
                     put("id", 2)
@@ -301,7 +298,7 @@ class WledController(context: Context? = null) {
     /**
      * Fetches WLED presets from the controller at /presets.json
      */
-    fun fetchPresets(host: String): List<WledPreset>? {
+    open fun fetchPresets(host: String): List<WledPreset>? {
         val url = cleanUrl(host, "/presets.json")
         val request = Request.Builder().url(url).get().build()
         return try {
@@ -330,7 +327,7 @@ class WledController(context: Context? = null) {
     /**
      * Fetches WLED speed effects from the controller at /json/eff
      */
-    fun fetchEffects(host: String): List<String>? {
+    open fun fetchEffects(host: String): List<String>? {
         val url = cleanUrl(host, "/json/eff")
         val request = Request.Builder().url(url).get().build()
         return try {
@@ -353,7 +350,7 @@ class WledController(context: Context? = null) {
     /**
      * Fetches WLED color palettes from the controller at /json/pal
      */
-    fun fetchPalettes(host: String): List<String>? {
+    open fun fetchPalettes(host: String): List<String>? {
         val url = cleanUrl(host, "/json/pal")
         val request = Request.Builder().url(url).get().build()
         return try {
@@ -377,7 +374,7 @@ class WledController(context: Context? = null) {
      * Sends the configured WledLook along with dynamic brightness to the ESP32/ESP8266
      * over the bound USB-C Ethernet or Wi-Fi interface (and mirrors over USB Serial if connected).
      */
-    fun sendState(host: String, look: WledLook, brightness: Float): Boolean {
+    open fun sendState(host: String, look: WledLook, brightness: Float): Boolean {
         val url = cleanUrl(host, "/json/state")
 
         // 1. Map look colors from hex to RGB List
@@ -386,9 +383,9 @@ class WledController(context: Context? = null) {
         // 2. Map brightness (0.0 - 1.0) to (0 - 255)
         val bright8Bit = (brightness * 255).toInt().coerceIn(0, 255)
 
-        // 3. Construct Target Segments based on SegmentTarget enum ("BOTH", "SEG_0_IO16", "SEG_1_IO2")
+        // 3. Construct Target Segments based on SegmentTarget enum
         val targetSegmentsList = if (look.presetId == null) {
-            val targetIds: List<Int?> = SegmentTarget.fromWireValue(look.targetSegments).targetSegmentIds
+            val targetIds: List<Int?> = look.targetSegments.targetSegmentIds
             targetIds.map { segId ->
                 WledSegment(
                     id = segId,

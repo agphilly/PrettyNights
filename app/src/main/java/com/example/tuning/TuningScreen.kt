@@ -16,82 +16,70 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.PrettyNightsApp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.config.AppConfig
-import com.example.ride.RideService
+import com.example.logging.SessionEntity
 import com.example.statemachine.RideState
 import com.example.statemachine.StateMachineConfig
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.sample
-import kotlinx.coroutines.withContext
+import com.example.statemachine.StateMachineTelemetry
 
-@OptIn(ExperimentalMaterial3Api::class, kotlinx.coroutines.FlowPreview::class)
 @Composable
 fun TuningScreen(
+    config: AppConfig? = null,
+    onConfigSave: ((AppConfig) -> Unit)? = null,
+    onBack: () -> Unit,
+    vm: TuningViewModel = viewModel(factory = TuningViewModel.Factory)
+) {
+    val vmConfig by vm.config.collectAsStateWithLifecycle()
+    val isLocked by vm.isLocked.collectAsStateWithLifecycle()
+    val isRideRunning by vm.isRideRunning.collectAsStateWithLifecycle()
+    val telemetry by vm.telemetry.collectAsStateWithLifecycle()
+    val sessions by vm.sessions.collectAsStateWithLifecycle()
+    val overrideState by vm.overrideState.collectAsStateWithLifecycle()
+    val overrideBrightness by vm.overrideBrightness.collectAsStateWithLifecycle()
+    val wledUnreachableError by vm.wledUnreachableError.collectAsStateWithLifecycle()
+    val replayResult by vm.replayResult.collectAsStateWithLifecycle()
+    val isRunningReplay by vm.isRunningReplay.collectAsStateWithLifecycle()
+
+    TuningContent(
+        config = config ?: vmConfig,
+        isLocked = isLocked,
+        isRideRunning = isRideRunning,
+        telemetry = telemetry,
+        sessions = sessions,
+        overrideState = overrideState,
+        overrideBrightness = overrideBrightness,
+        wledUnreachableError = wledUnreachableError,
+        replayResult = replayResult,
+        isRunningReplay = isRunningReplay,
+        onSelectOverride = vm::selectOverride,
+        onBrightnessChange = vm::setOverrideBrightness,
+        onRunReplay = vm::runReplay,
+        onConfigSave = onConfigSave ?: vm::saveConfig,
+        onBack = onBack
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TuningContent(
     config: AppConfig,
-    onConfigSave: (AppConfig) -> Unit,
-    onBack: () -> Unit
+    isLocked: Boolean = false,
+    isRideRunning: Boolean = false,
+    telemetry: StateMachineTelemetry? = null,
+    sessions: List<SessionEntity> = emptyList(),
+    overrideState: RideState? = null,
+    overrideBrightness: Float = 1.0f,
+    wledUnreachableError: Boolean = false,
+    replayResult: ReplayComparisonResult? = null,
+    isRunningReplay: Boolean = false,
+    onSelectOverride: (RideState?) -> Unit = {},
+    onBrightnessChange: (Float) -> Unit = {},
+    onRunReplay: (Long, StateMachineConfig, String) -> Unit = { _, _, _ -> },
+    onConfigSave: (AppConfig) -> Unit = {},
+    onBack: () -> Unit = {}
 ) {
     BackHandler(onBack = onBack)
-    val isLocked by PrettyNightsApp.instance.lockController.isLocked.collectAsStateWithLifecycle()
-    val isRideRunning by RideService.isServiceRunning.collectAsStateWithLifecycle()
-
-    var overrideState by remember { mutableStateOf<RideState?>(null) }
-    var overrideBrightness by remember { mutableStateOf(1.0f) }
-    var wledUnreachableError by remember { mutableStateOf(false) }
-
-    val sendChannel = remember {
-        Channel<Pair<RideState, Float>>(Channel.CONFLATED)
-    }
-
-    LaunchedEffect(isRideRunning) {
-        if (isRideRunning) {
-            overrideState = null
-        }
-    }
-
-    val currentConfig by rememberUpdatedState(config)
-
-    LaunchedEffect(Unit) {
-        var lastSentTime = 0L
-        for (event in sendChannel) {
-            val (state, brightness) = event
-            val now = android.os.SystemClock.elapsedRealtime()
-            val timeSinceLast = now - lastSentTime
-            if (timeSinceLast < 100) {
-                delay(100 - timeSinceLast)
-            }
-            val currentLook = when (state) {
-                RideState.IDLE -> currentConfig.idleLook
-                RideState.CRUISING -> currentConfig.cruisingLook
-                RideState.BRAKING -> currentConfig.brakingLook
-                else -> null
-            }
-            if (currentLook != null) {
-                try {
-                    val success = withContext(Dispatchers.IO) {
-                        PrettyNightsApp.instance.wledController.sendState(
-                            currentConfig.wledHost,
-                            currentLook,
-                            brightness
-                        )
-                    }
-                    wledUnreachableError = !success
-                } catch (e: Exception) {
-                    wledUnreachableError = true
-                }
-                lastSentTime = android.os.SystemClock.elapsedRealtime()
-            }
-        }
-    }
-
-    // Visual throttled telemetry flow (~6.7 Hz / 150ms sample)
-    val telemetry by remember {
-        PrettyNightsApp.instance.orchestrator.telemetryFlow
-            .sample(150L)
-    }.collectAsStateWithLifecycle(initialValue = null)
 
     var showResetDialog by remember { mutableStateOf(false) }
 
@@ -153,19 +141,17 @@ fun TuningScreen(
                     overrideState = overrideState,
                     overrideBrightness = overrideBrightness,
                     wledUnreachableError = wledUnreachableError,
-                    onSelectOverride = { newState ->
-                        overrideState = newState
-                        newState?.let { sendChannel.trySend(it to overrideBrightness) }
-                    },
-                    onBrightnessChange = { newBrightness ->
-                        overrideBrightness = newBrightness
-                        overrideState?.let { sendChannel.trySend(it to newBrightness) }
-                    }
+                    onSelectOverride = onSelectOverride,
+                    onBrightnessChange = onBrightnessChange
                 )
 
                 // 2b. In-App Ride Replay Simulator (Recorded 50 Hz IMU + GPS + Bosch Live Data V1.0)
                 TuningReplayCard(
-                    currentStateMachineConfig = sm
+                    currentStateMachineConfig = sm,
+                    sessions = sessions,
+                    replayResult = replayResult,
+                    isRunningReplay = isRunningReplay,
+                    onRunReplay = onRunReplay
                 )
 
                 // 2c. Web Workbench Config Sync (JSON / Kotlin Round-Trip)

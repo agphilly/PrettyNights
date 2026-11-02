@@ -20,14 +20,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.PrettyNightsApp
 import com.example.config.WledLook
 import com.example.statemachine.RideState
 import com.example.wled.WledPreset
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @Composable
 fun StateLookCard(
@@ -44,11 +40,10 @@ fun StateLookCard(
     onHeaderClick: () -> Unit,
     onLookChanged: (WledLook) -> Unit,
     isLocked: Boolean,
-    wledHost: String
+    previewStatus: String? = null,
+    onPreviewLook: () -> Unit = {},
+    onClearPreviewStatus: () -> Unit = {}
 ) {
-    val coroutineScope = rememberCoroutineScope()
-    var previewStatus by remember { mutableStateOf<String?>(null) }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(2.dp),
@@ -71,7 +66,7 @@ fun StateLookCard(
                     val parsedColor = remember(primaryColorHex) {
                         try {
                             Color(android.graphics.Color.parseColor(primaryColorHex))
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             Color.Red
                         }
                     }
@@ -215,19 +210,7 @@ fun StateLookCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Button(
-                            onClick = {
-                                previewStatus = "Sending preview..."
-                                coroutineScope.launch(Dispatchers.IO) {
-                                    val ok = PrettyNightsApp.instance.wledController.sendState(
-                                        host = wledHost,
-                                        look = look,
-                                        brightness = 1.0f
-                                    )
-                                    withContext(Dispatchers.Main) {
-                                        previewStatus = if (ok) "Sent successfully!" else "WLED unreachable!"
-                                    }
-                                }
-                            },
+                            onClick = onPreviewLook,
                             enabled = !isLocked,
                             modifier = Modifier.testTag("btn_preview_${state.name}"),
                             colors = ButtonDefaults.buttonColors(
@@ -256,7 +239,7 @@ fun StateLookCard(
                             LaunchedEffect(status) {
                                 if (status != "Sending preview...") {
                                     delay(3500)
-                                    previewStatus = null
+                                    onClearPreviewStatus()
                                 }
                             }
                         }

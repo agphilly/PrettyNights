@@ -23,21 +23,40 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.PrettyNightsApp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.logging.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.*
 
 @Composable
-fun HistoryScreen() {
-    val logRepository = PrettyNightsApp.instance.logRepository
-    val sessions by logRepository.allSessions.collectAsStateWithLifecycle(initialValue = emptyList())
-    val coroutineScope = rememberCoroutineScope()
+fun HistoryScreen(
+    vm: HistoryViewModel = viewModel(factory = HistoryViewModel.Factory)
+) {
+    val context = LocalContext.current
+    val sessions by vm.sessions.collectAsStateWithLifecycle()
+    val expandedSessionId by vm.expandedSessionId.collectAsStateWithLifecycle()
+    val metricsBySessionId by vm.metricsBySessionId.collectAsStateWithLifecycle()
 
-    var expandedSessionId by remember { mutableStateOf<Long?>(null) }
+    HistoryContent(
+        sessions = sessions,
+        expandedSessionId = expandedSessionId,
+        metricsBySessionId = metricsBySessionId,
+        onToggleExpand = vm::toggleExpand,
+        onDeleteSession = vm::deleteSession,
+        onUpdateMetadata = vm::updateSessionMetadata,
+        onExportCsv = { session -> vm.exportSessionCsv(context, session) }
+    )
+}
+
+@Composable
+fun HistoryContent(
+    sessions: List<SessionEntity>,
+    expandedSessionId: Long? = null,
+    metricsBySessionId: Map<Long, SessionMetricsState> = emptyMap(),
+    onToggleExpand: (Long) -> Unit = {},
+    onDeleteSession: (Long) -> Unit = {},
+    onUpdateMetadata: (Long, String, String) -> Unit = { _, _, _ -> },
+    onExportCsv: (SessionEntity) -> Unit = {}
+) {
     var editingSession by remember { mutableStateOf<SessionEntity?>(null) }
 
     Column(
@@ -116,20 +135,11 @@ fun HistoryScreen() {
                     SessionCard(
                         session = session,
                         expanded = expandedSessionId == session.id,
-                        onExpandRequest = {
-                            expandedSessionId = if (expandedSessionId == session.id) null else session.id
-                        },
-                        onEditNotesRequest = {
-                            editingSession = session
-                        },
-                        onDeleteSession = {
-                            coroutineScope.launch {
-                                logRepository.deleteSession(session.id)
-                                if (expandedSessionId == session.id) {
-                                    expandedSessionId = null
-                                }
-                            }
-                        }
+                        metrics = metricsBySessionId[session.id] ?: SessionMetricsState(),
+                        onExpandRequest = { onToggleExpand(session.id) },
+                        onEditNotesRequest = { editingSession = session },
+                        onDeleteSession = { onDeleteSession(session.id) },
+                        onExportCsv = { onExportCsv(session) }
                     )
                 }
             }
@@ -172,9 +182,7 @@ fun HistoryScreen() {
                         val newTitle = titleText
                         val newNotes = notesText
                         editingSession = null
-                        coroutineScope.launch {
-                            logRepository.updateSessionMetadata(sId, newTitle, newNotes)
-                        }
+                        onUpdateMetadata(sId, newTitle, newNotes)
                     },
                     modifier = Modifier.testTag("btn_save_session_notes")
                 ) {
@@ -194,14 +202,12 @@ fun HistoryScreen() {
 fun SessionCard(
     session: SessionEntity,
     expanded: Boolean,
+    metrics: SessionMetricsState = SessionMetricsState(),
     onExpandRequest: () -> Unit,
     onEditNotesRequest: () -> Unit,
-    onDeleteSession: () -> Unit
+    onDeleteSession: () -> Unit,
+    onExportCsv: () -> Unit = {}
 ) {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    val logRepository = PrettyNightsApp.instance.logRepository
-
     val formattedDate = remember(session.startTimeMillis) {
         val calendar = Calendar.getInstance().apply { timeInMillis = session.startTimeMillis }
         DateFormat.format("MMM dd, yyyy - hh:mm a", calendar).toString()
@@ -219,32 +225,12 @@ fun SessionCard(
         }
     }
 
-    var imuSummary by remember { mutableStateOf(ImuSessionSummary()) }
-    var boschSamples by remember { mutableStateOf<List<BoschSampleEntity>>(emptyList()) }
-    var stateIntervals by remember { mutableStateOf<List<StateIntervalEntity>>(emptyList()) }
-    var rideMarkers by remember { mutableStateOf<List<RideMarkerEntity>>(emptyList()) }
-    var boschReport by remember { mutableStateOf<BoschSessionReliabilityReport?>(null) }
-    var isLoadingMetrics by remember { mutableStateOf(false) }
-
-    LaunchedEffect(expanded, session.id) {
-        if (expanded) {
-            isLoadingMetrics = true
-            withContext(Dispatchers.IO) {
-                val loadedSummary = logRepository.getImuSessionSummary(session.id)
-                val loadedBosch = logRepository.getBoschSamples(session.id).first()
-                val loadedIntervals = logRepository.getStateIntervals(session.id).first()
-                val loadedMarkers = logRepository.getRideMarkers(session.id).first()
-                val report = SessionExportHelper.computeBoschReportFromSummary(loadedSummary, loadedBosch)
-
-                imuSummary = loadedSummary
-                boschSamples = loadedBosch
-                stateIntervals = loadedIntervals
-                rideMarkers = loadedMarkers
-                boschReport = report
-            }
-            isLoadingMetrics = false
-        }
-    }
+    val imuSummary = metrics.imuSummary
+    val boschSamples = metrics.boschSamples
+    val stateIntervals = metrics.stateIntervals
+    val rideMarkers = metrics.rideMarkers
+    val boschReport = metrics.boschReport
+    val isLoadingMetrics = metrics.isLoading
 
     Card(
         modifier = Modifier
@@ -299,7 +285,7 @@ fun SessionCard(
                         )
                     }
                     Text(
-                        text = "Duration: $durationString • Control Source: ${session.configuredSpeedSource}",
+                        text = "Duration: $durationString • Control Source: ${session.configuredSpeedSource.wireValue}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -382,20 +368,7 @@ fun SessionCard(
                                 Text("Edit Notes", fontSize = 12.sp)
                             }
                             Button(
-                                onClick = {
-                                    coroutineScope.launch(Dispatchers.IO) {
-                                        val fullImuSamples = logRepository.getImuSamples(session.id).first()
-                                        val report = SessionExportHelper.computeBoschReport(fullImuSamples, boschSamples)
-                                        SessionExportHelper.exportAndShareSessionCsv(
-                                            context = context,
-                                            session = session,
-                                            imuSamples = fullImuSamples,
-                                            boschSamples = boschSamples,
-                                            markers = rideMarkers,
-                                            report = report
-                                        )
-                                    }
-                                },
+                                onClick = onExportCsv,
                                 modifier = Modifier.weight(1f).testTag("btn_export_csv_${session.id}")
                             ) {
                                 Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -489,13 +462,14 @@ fun SessionCard(
                             )
                             rideMarkers.forEach { marker ->
                                 val elapsedSec = (marker.timestampMonotonicMs - session.startMonotonicMs) / 1000.0
+                                val label = marker.markerType?.wireValue ?: "UNKNOWN"
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "• ${marker.markerType}",
+                                        text = "• $label",
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary

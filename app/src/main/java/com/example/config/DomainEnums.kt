@@ -1,5 +1,10 @@
 package com.example.config
 
+import com.squareup.moshi.FromJson
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.ToJson
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+
 /**
  * Type-safe domain enums for PrettyNights configuration, hardware provisioning,
  * and ride telemetry, with backwards-compatible wire string conversion.
@@ -16,10 +21,16 @@ enum class SpeedSourceMode(val wireValue: String, val displayLabel: String) {
                 "GPS", "GPS_ONLY" -> GPS_ONLY
                 "BOSCH", "BOSCH_ONLY" -> BOSCH_ONLY
                 "BOSCH_PREFERRED" -> BOSCH_PREFERRED
-                else -> BOSCH_PREFERRED
+                else -> GPS_ONLY
             }
         }
     }
+}
+
+enum class ActiveSpeedSource {
+    GPS,
+    BOSCH,
+    GPS_FALLBACK
 }
 
 enum class SensorAxis(val wireValue: String) {
@@ -45,10 +56,11 @@ enum class RideMarkerType(val wireValue: String, val displayLabel: String) {
     BOSCH_GLITCH("BOSCH_GLITCH", "Bosch Glitch");
 
     companion object {
-        fun fromWireValue(raw: String?): RideMarkerType {
-            return entries.firstOrNull { it.wireValue.equals(raw?.trim(), ignoreCase = true) }
-                ?: HARD_BRAKE
-        }
+        fun fromWireValueOrNull(raw: String?): RideMarkerType? =
+            entries.firstOrNull { it.wireValue.equals(raw?.trim(), ignoreCase = true) }
+
+        fun fromWireValue(raw: String?): RideMarkerType =
+            fromWireValueOrNull(raw) ?: HARD_BRAKE
     }
 }
 
@@ -81,4 +93,43 @@ enum class SegmentTarget(
                 ?: BOTH
         }
     }
+}
+
+object DomainEnumJson {
+    @ToJson
+    fun speedSourceToJson(v: SpeedSourceMode): String = v.wireValue
+
+    @FromJson
+    fun speedSourceFromJson(s: String): SpeedSourceMode = SpeedSourceMode.fromWireValue(s)
+
+    @ToJson
+    fun axisToJson(v: SensorAxis): String = v.wireValue
+
+    @FromJson
+    fun axisFromJson(s: String): SensorAxis = SensorAxis.fromWireValue(s)
+
+    @ToJson
+    fun io13ToJson(v: Io13PinRole): String = v.wireValue
+
+    @FromJson
+    fun io13FromJson(s: String): Io13PinRole = Io13PinRole.fromWireValue(s)
+
+    @ToJson
+    fun segTargetToJson(v: SegmentTarget): String = v.wireValue
+
+    @FromJson
+    fun segTargetFromJson(s: String): SegmentTarget = SegmentTarget.fromWireValue(s)
+
+    @ToJson
+    fun markerToJson(v: RideMarkerType?): String? = v?.wireValue
+
+    @FromJson
+    fun markerFromJson(s: String?): RideMarkerType? = RideMarkerType.fromWireValueOrNull(s)
+}
+
+object AppJson {
+    val moshi: Moshi = Moshi.Builder()
+        .add(DomainEnumJson)
+        .addLast(KotlinJsonAdapterFactory())
+        .build()
 }

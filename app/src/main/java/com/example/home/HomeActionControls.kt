@@ -29,7 +29,7 @@ fun HomeActionControls(
     markerCount: Int = 0,
     lastMarkerLabel: String? = null,
     onSelectMode: (String) -> Unit,
-    onStampMarker: (String) -> Unit = {},
+    onStampMarker: (RideMarkerType) -> Unit = {},
     onToggleService: () -> Unit
 ) {
     val isAnyServiceRunning = isRunning || isMusicRunning
@@ -167,15 +167,13 @@ fun HomeActionControls(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     MarkerStampButton(
-                        label = RideMarkerType.HARD_BRAKE.displayLabel,
-                        markerType = RideMarkerType.HARD_BRAKE.wireValue,
+                        marker = RideMarkerType.HARD_BRAKE,
                         color = Color(0xFFC62828),
                         modifier = Modifier.weight(1f),
                         onStamp = onStampMarker
                     )
                     MarkerStampButton(
-                        label = RideMarkerType.LIGHT_BRAKE.displayLabel,
-                        markerType = RideMarkerType.LIGHT_BRAKE.wireValue,
+                        marker = RideMarkerType.LIGHT_BRAKE,
                         color = Color(0xFFEF6C00),
                         modifier = Modifier.weight(1f),
                         onStamp = onStampMarker
@@ -187,15 +185,13 @@ fun HomeActionControls(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     MarkerStampButton(
-                        label = RideMarkerType.ROAD_BUMP.displayLabel,
-                        markerType = RideMarkerType.ROAD_BUMP.wireValue,
+                        marker = RideMarkerType.ROAD_BUMP,
                         color = Color(0xFF6A1B9A),
                         modifier = Modifier.weight(1f),
                         onStamp = onStampMarker
                     )
                     MarkerStampButton(
-                        label = RideMarkerType.BOSCH_GLITCH.displayLabel,
-                        markerType = RideMarkerType.BOSCH_GLITCH.wireValue,
+                        marker = RideMarkerType.BOSCH_GLITCH,
                         color = Color(0xFF00838F),
                         modifier = Modifier.weight(1f),
                         onStamp = onStampMarker
@@ -274,23 +270,22 @@ fun HomeLogOnlyModeCard(
 
 @Composable
 private fun MarkerStampButton(
-    label: String,
-    markerType: String,
+    marker: RideMarkerType,
     color: Color,
     modifier: Modifier = Modifier,
-    onStamp: (String) -> Unit
+    onStamp: (RideMarkerType) -> Unit
 ) {
     Button(
-        onClick = { onStamp(markerType) },
+        onClick = { onStamp(marker) },
         modifier = modifier
             .height(48.dp)
-            .testTag("btn_marker_$markerType"),
+            .testTag("btn_marker_${marker.wireValue}"),
         shape = RoundedCornerShape(10.dp),
         colors = ButtonDefaults.buttonColors(containerColor = color),
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Text(
-            text = label,
+            text = marker.displayLabel,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White

@@ -32,14 +32,14 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.PrettyNightsApp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.config.AppConfig
+import com.example.config.RideMarkerType
+import com.example.ride.BoschLiveDataState
 import com.example.ride.MusicService
 import com.example.ride.RideService
 import com.example.statemachine.RideState
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.example.wled.WledTransportState
 
 enum class ScreenWledStatus {
     UNKNOWN,
@@ -59,26 +59,75 @@ fun Context.findActivity(): Activity? {
 
 @Composable
 fun HomeScreen(
+    config: AppConfig? = null,
+    onTabRequest: (Int) -> Unit = {},
+    onNavigateToTuning: () -> Unit = {},
+    vm: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
+) {
+    val vmConfig by vm.config.collectAsStateWithLifecycle()
+    val isRunning by vm.isRunning.collectAsStateWithLifecycle()
+    val activeState by vm.activeState.collectAsStateWithLifecycle()
+    val isMusicRunning by vm.isMusicRunning.collectAsStateWithLifecycle()
+    val musicBands by vm.musicBands.collectAsStateWithLifecycle()
+    val markerCount by vm.markerCount.collectAsStateWithLifecycle()
+    val lastMarkerLabel by vm.lastMarkerLabel.collectAsStateWithLifecycle()
+    val boschState by vm.boschState.collectAsStateWithLifecycle()
+    val wledTransportState by vm.wledTransportState.collectAsStateWithLifecycle()
+    val wledStatus by vm.wledStatus.collectAsStateWithLifecycle()
+
+    val effectiveConfig = config ?: vmConfig
+
+    LaunchedEffect(effectiveConfig.wledHost) {
+        vm.checkWledReachability(effectiveConfig.wledHost)
+    }
+
+    LaunchedEffect(isRunning, isMusicRunning) {
+        if (isRunning || isMusicRunning) {
+            vm.setWledStatusReachable()
+        } else {
+            vm.checkWledReachability(effectiveConfig.wledHost)
+        }
+    }
+
+    HomeContent(
+        config = effectiveConfig,
+        isRunning = isRunning,
+        activeState = activeState,
+        isMusicRunning = isMusicRunning,
+        musicBands = musicBands,
+        markerCount = markerCount,
+        lastMarkerLabel = lastMarkerLabel,
+        boschState = boschState,
+        wledTransportState = wledTransportState,
+        wledStatus = wledStatus,
+        onCheckWled = { vm.checkWledReachability(effectiveConfig.wledHost) },
+        onStampMarker = vm::stampMarker,
+        onToggleLogOnlyMode = vm::toggleLogOnlyMode,
+        onTabRequest = onTabRequest,
+        onNavigateToTuning = onNavigateToTuning
+    )
+}
+
+@Composable
+fun HomeContent(
     config: AppConfig,
-    onTabRequest: (Int) -> Unit,
+    isRunning: Boolean = false,
+    activeState: RideState = RideState.IDLE,
+    isMusicRunning: Boolean = false,
+    musicBands: FloatArray = FloatArray(16),
+    markerCount: Int = 0,
+    lastMarkerLabel: String? = null,
+    boschState: BoschLiveDataState = BoschLiveDataState(),
+    wledTransportState: WledTransportState = WledTransportState(),
+    wledStatus: ScreenWledStatus = ScreenWledStatus.UNKNOWN,
+    onCheckWled: () -> Unit = {},
+    onStampMarker: (RideMarkerType) -> Unit = {},
+    onToggleLogOnlyMode: (Boolean) -> Unit = {},
+    onTabRequest: (Int) -> Unit = {},
     onNavigateToTuning: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val coroutineScope = rememberCoroutineScope()
-    val app = PrettyNightsApp.instance
-
-    // Service running states
-    val isRunning by RideService.isServiceRunning.collectAsStateWithLifecycle()
-    val activeState by RideService.activeRideState.collectAsStateWithLifecycle()
-    val isMusicRunning by MusicService.isServiceRunning.collectAsStateWithLifecycle()
-    val musicBands by MusicService.fftBands.collectAsStateWithLifecycle()
-
-    // Live markers, Bosch state, and WLED physical transport state
-    val markerCount by app.orchestrator.markerCountFlow.collectAsStateWithLifecycle()
-    val lastMarkerLabel by app.orchestrator.lastMarkerLabelFlow.collectAsStateWithLifecycle()
-    val boschState by app.boschSpeedProvider.liveStateFlow.collectAsStateWithLifecycle()
-    val wledTransportState by app.wledController.transportState.collectAsStateWithLifecycle()
 
     var selectedMode by remember { mutableStateOf("STANDARD") }
     var locationGranted by remember {
@@ -101,28 +150,12 @@ fun HomeScreen(
         )
     }
     var permissionPermanentlyDenied by remember { mutableStateOf(false) }
-    var wledStatus by remember { mutableStateOf(ScreenWledStatus.UNKNOWN) }
 
     LaunchedEffect(isRunning, isMusicRunning) {
         if (isRunning) {
             selectedMode = "STANDARD"
         } else if (isMusicRunning) {
             selectedMode = "MUSIC"
-        }
-    }
-
-    // Helper function to ping WLED
-    fun checkWledReachability() {
-        if (isRunning) {
-            wledStatus = ScreenWledStatus.REACHABLE
-            return
-        }
-        coroutineScope.launch {
-            wledStatus = ScreenWledStatus.CHECKING
-            val reachable = withContext(Dispatchers.IO) {
-                app.wledController.ping(config.wledHost)
-            }
-            wledStatus = if (reachable) ScreenWledStatus.REACHABLE else ScreenWledStatus.UNREACHABLE
         }
     }
 
@@ -168,18 +201,6 @@ fun HomeScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    LaunchedEffect(config.wledHost) {
-        checkWledReachability()
-    }
-
-    LaunchedEffect(isRunning, isMusicRunning) {
-        if (isRunning || isMusicRunning) {
-            wledStatus = ScreenWledStatus.REACHABLE
-        } else {
-            checkWledReachability()
         }
     }
 
@@ -300,8 +321,8 @@ fun HomeScreen(
                 lastMarkerLabel = lastMarkerLabel,
                 onSelectMode = { selectedMode = it },
                 onStampMarker = { markerType ->
-                    app.orchestrator.recordRideMarker(markerType)
-                    Toast.makeText(context, "Marker stamped: $markerType", Toast.LENGTH_SHORT).show()
+                    onStampMarker(markerType)
+                    Toast.makeText(context, "Marker stamped: ${markerType.wireValue}", Toast.LENGTH_SHORT).show()
                 },
                 onToggleService = {
                     if (isModeStandard) {
@@ -367,7 +388,7 @@ fun HomeScreen(
                 onGrantMic = {
                     micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                 },
-                onCheckWled = { checkWledReachability() }
+                onCheckWled = onCheckWled
             )
 
             // 4. Glowing Bike Art or Audio Equalizer
@@ -386,11 +407,7 @@ fun HomeScreen(
                 HomeLogOnlyModeCard(
                     logOnlyMode = config.logOnlyMode,
                     isAnyServiceRunning = isRunning || isMusicRunning,
-                    onToggleLogOnlyMode = { enabled ->
-                        coroutineScope.launch {
-                            app.configManager.updateConfig { it.copy(logOnlyMode = enabled) }
-                        }
-                    }
+                    onToggleLogOnlyMode = onToggleLogOnlyMode
                 )
             }
 

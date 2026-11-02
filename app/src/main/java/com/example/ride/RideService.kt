@@ -8,10 +8,9 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import com.example.MainActivity
 import com.example.PrettyNightsApp
-import com.example.R
+import com.example.appContainer
 import com.example.statemachine.RideState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,12 +18,13 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class RideService : Service() {
 
-    private val orchestrator = PrettyNightsApp.instance.orchestrator
+    private lateinit var orchestrator: RideOrchestrator
     private var lastNotifiedState: RideState? = null
     private var lastNotificationTimeMs: Long = 0L
 
     override fun onCreate() {
         super.onCreate()
+        orchestrator = appContainer.orchestrator
         _isServiceRunning.value = true
     }
 
@@ -38,7 +38,7 @@ class RideService : Service() {
         val notification = createNotification("Starting Ride...", RideState.IDLE, 0f)
         lastNotifiedState = RideState.IDLE
         lastNotificationTimeMs = android.os.SystemClock.elapsedRealtime()
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
                 NOTIFICATION_ID,
@@ -113,7 +113,7 @@ class RideService : Service() {
         return NotificationCompat.Builder(this, PrettyNightsApp.CHANNEL_ID)
             .setContentTitle("Pretty Nights — $stateLabel")
             .setContentText(contentText)
-            .setSmallIcon(android.R.drawable.ic_menu_compass) // fallback system compass icon for stability
+            .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)

@@ -200,7 +200,7 @@ object SessionExportHelper {
         out.appendLine("# title,\"${session.title.replace("\"", "\"\"")}\"")
         out.appendLine("# notes,\"${session.notes.replace("\"", "\"\"")}\"")
         out.appendLine("# mode,${if (session.logOnlyMode) "LOG_ONLY_NO_WLED" else "WLED_ACTIVE"}")
-        out.appendLine("# configured_speed_source,${session.configuredSpeedSource}")
+        out.appendLine("# configured_speed_source,${session.configuredSpeedSource.wireValue}")
         out.appendLine("# start_wall_ms,${session.startTimeMillis}")
         out.appendLine("# start_monotonic_ms,${session.startMonotonicMs}")
         out.appendLine("# end_monotonic_ms,${session.endTimeMonotonicMs ?: ""}")
@@ -217,7 +217,8 @@ object SessionExportHelper {
         out.appendLine("marker_id,timestamp_monotonic_ms,elapsed_ms,marker_type,note")
         for (m in markers) {
             val elapsed = m.timestampMonotonicMs - session.startMonotonicMs
-            out.appendLine("${m.id},${m.timestampMonotonicMs},$elapsed,${m.markerType},\"${m.note.replace("\"", "\"\"")}\"")
+            val markerWire = m.markerType?.wireValue ?: "UNKNOWN"
+            out.appendLine("${m.id},${m.timestampMonotonicMs},$elapsed,$markerWire,\"${m.note.replace("\"", "\"\"")}\"")
         }
         out.appendLine()
 
@@ -251,7 +252,7 @@ object SessionExportHelper {
         )
         for (s in imuSamples) {
             val elapsed = s.timestampMonotonicMs - session.startMonotonicMs
-            val nearMarker = markers.firstOrNull { kotlin.math.abs(it.timestampMonotonicMs - s.timestampMonotonicMs) <= 25L }?.markerType ?: ""
+            val nearMarker = markers.firstOrNull { kotlin.math.abs(it.timestampMonotonicMs - s.timestampMonotonicMs) <= 25L }?.markerType?.wireValue ?: ""
             out.appendLine(
                 "${s.id},${s.timestampMonotonicMs},$elapsed,${s.stateName},${s.activeSpeedSource}," +
                     "${String.format(Locale.US, "%.2f", s.speedKmh)},${String.format(Locale.US, "%.2f", s.gpsSpeedKmh)}," +

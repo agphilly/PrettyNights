@@ -14,8 +14,8 @@ android {
     applicationId = "com.aistudio.prettynights.gskwqp"
     minSdk = 24
     targetSdk = 36
-    versionCode = 10
-    versionName = "1.9.0"
+    versionCode = 11
+    versionName = "2.0.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -55,7 +55,12 @@ android {
     compose = true
     buildConfig = true
   }
-  testOptions { unitTests { isIncludeAndroidResources = true } }
+  testOptions {
+    unitTests {
+      isIncludeAndroidResources = true
+      isReturnDefaultValues = true
+    }
+  }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files

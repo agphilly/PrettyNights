@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.config.AppConfig
+import com.example.config.SensorAxis
 
 @Composable
 fun SensorCalibrationCard(
@@ -55,7 +56,7 @@ fun SensorCalibrationCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                listOf("X", "Y", "Z").forEach { axis ->
+                SensorAxis.entries.forEach { axis ->
                     FilterChip(
                         selected = config.sensorAxis == axis,
                         onClick = {
@@ -64,7 +65,7 @@ fun SensorCalibrationCard(
                             }
                         },
                         enabled = !isLocked,
-                        label = { Text("Axis $axis", modifier = Modifier.padding(horizontal = 12.dp)) }
+                        label = { Text("Axis ${axis.wireValue}", modifier = Modifier.padding(horizontal = 12.dp)) }
                     )
                 }
             }

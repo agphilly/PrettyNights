@@ -51,6 +51,9 @@ jobs:
             gradle :app:testDebugUnitTest --stacktrace
           fi
 
+      - name: Run Kotlin-JS State Machine Parity Test
+        run: node tools/telemetry-workbench/parity.test.js
+
       - name: Assemble Debug APK
         run: |
           if [ -x ./gradlew ]; then

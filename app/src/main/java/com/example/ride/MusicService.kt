@@ -19,6 +19,9 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.MainActivity
 import com.example.PrettyNightsApp
+import com.example.appContainer
+import com.example.config.ConfigManager
+import com.example.wled.WledController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -41,6 +44,8 @@ import kotlin.math.PI
 class MusicService : Service() {
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private lateinit var wledController: WledController
+    private lateinit var configManager: ConfigManager
     private var mediaProjection: MediaProjection? = null
     private var audioRecord: AudioRecord? = null
     private var udpSocket: DatagramSocket? = null
@@ -53,6 +58,8 @@ class MusicService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        wledController = appContainer.wledController
+        configManager = appContainer.configManager
         _isServiceRunning.value = true
     }
 
@@ -131,7 +138,7 @@ class MusicService : Service() {
 
                     audioRecord?.startRecording()
                     udpSocket = DatagramSocket().also { socket ->
-                        PrettyNightsApp.instance.wledController.bindUdpSocket(socket)
+                        wledController.bindUdpSocket(socket)
                     }
 
                     // Start Capture & Stream Loop
@@ -155,7 +162,7 @@ class MusicService : Service() {
         val readBuffer = ShortArray(readSize)
         val historyBuffer = ShortArray(fftSize)
 
-        val config = PrettyNightsApp.instance.configManager.getConfigSnapshot()
+        val config = configManager.getConfigSnapshot()
         val port = config.audioSyncPort
         val multicastAddress = InetAddress.getByName("239.0.0.1")
 
