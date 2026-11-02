@@ -3,6 +3,8 @@ package com.example.wled
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
+import com.example.config.Io13PinRole
+import com.example.config.SegmentTarget
 import com.example.config.WledHardwareConfig
 import com.example.config.WledLook
 import com.squareup.moshi.Moshi
@@ -199,8 +201,10 @@ class WledController(context: Context? = null) {
             nextStart += ch2Len
         }
 
+        val io13Role = Io13PinRole.fromWireValue(hw.io13Role)
+
         // Bus 2: Auxiliary IO13 as 3rd LED strip if selected
-        if (hw.io13Role == "STRIP_CH3") {
+        if (io13Role == Io13PinRole.STRIP_CH3) {
             insArray.put(
                 JSONObject().apply {
                     put("start", nextStart)
@@ -222,11 +226,7 @@ class WledController(context: Context? = null) {
         }
 
         // Button 0 on GPIO 13 (unless IO13 is used as 3rd LED strip)
-        val btnType = when (hw.io13Role) {
-            "PUSHBUTTON" -> 2 // Pushbutton (inverted pull-up)
-            "REED_SWITCH" -> 4 // Switch / reed sensor
-            else -> 0 // Disabled
-        }
+        val btnType = io13Role.wledButtonType
         val btnPin = if (btnType > 0) 13 else -1
         val btnIns = JSONArray().put(
             JSONObject().apply {
@@ -280,7 +280,7 @@ class WledController(context: Context? = null) {
         }
 
         // Segment 2: Auxiliary IO13 if configured as 3rd LED strip
-        if (hw.io13Role == "STRIP_CH3") {
+        if (Io13PinRole.fromWireValue(hw.io13Role) == Io13PinRole.STRIP_CH3) {
             segArray.put(
                 JSONObject().apply {
                     put("id", 2)
@@ -386,13 +386,9 @@ class WledController(context: Context? = null) {
         // 2. Map brightness (0.0 - 1.0) to (0 - 255)
         val bright8Bit = (brightness * 255).toInt().coerceIn(0, 255)
 
-        // 3. Construct Target Segments based on look.targetSegments ("BOTH", "SEG_0_IO16", "SEG_1_IO2")
+        // 3. Construct Target Segments based on SegmentTarget enum ("BOTH", "SEG_0_IO16", "SEG_1_IO2")
         val targetSegmentsList = if (look.presetId == null) {
-            val targetIds: List<Int?> = when (look.targetSegments) {
-                "SEG_0_IO16" -> listOf(0)
-                "SEG_1_IO2" -> listOf(1)
-                else -> listOf(null) // null targets active main/all segments seamlessly
-            }
+            val targetIds: List<Int?> = SegmentTarget.fromWireValue(look.targetSegments).targetSegmentIds
             targetIds.map { segId ->
                 WledSegment(
                     id = segId,

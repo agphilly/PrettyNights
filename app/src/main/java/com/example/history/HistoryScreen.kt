@@ -219,7 +219,7 @@ fun SessionCard(
         }
     }
 
-    var imuSamples by remember { mutableStateOf<List<ImuSampleEntity>>(emptyList()) }
+    var imuSummary by remember { mutableStateOf(ImuSessionSummary()) }
     var boschSamples by remember { mutableStateOf<List<BoschSampleEntity>>(emptyList()) }
     var stateIntervals by remember { mutableStateOf<List<StateIntervalEntity>>(emptyList()) }
     var rideMarkers by remember { mutableStateOf<List<RideMarkerEntity>>(emptyList()) }
@@ -230,13 +230,13 @@ fun SessionCard(
         if (expanded) {
             isLoadingMetrics = true
             withContext(Dispatchers.IO) {
-                val loadedImu = logRepository.getImuSamples(session.id).first()
+                val loadedSummary = logRepository.getImuSessionSummary(session.id)
                 val loadedBosch = logRepository.getBoschSamples(session.id).first()
                 val loadedIntervals = logRepository.getStateIntervals(session.id).first()
                 val loadedMarkers = logRepository.getRideMarkers(session.id).first()
-                val report = SessionExportHelper.computeBoschReport(loadedImu, loadedBosch)
+                val report = SessionExportHelper.computeBoschReportFromSummary(loadedSummary, loadedBosch)
 
-                imuSamples = loadedImu
+                imuSummary = loadedSummary
                 boschSamples = loadedBosch
                 stateIntervals = loadedIntervals
                 rideMarkers = loadedMarkers
@@ -357,12 +357,12 @@ fun SessionCard(
                             CircularProgressIndicator(modifier = Modifier.size(24.dp))
                         }
                     } else {
-                        // 1. Core Session Counters
+                        // 1. Core Session Counters (backed by lightweight SQL summary)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceAround
                         ) {
-                            MetricCounterCol("50 Hz IMU Ticks", "${imuSamples.size}")
+                            MetricCounterCol("50 Hz IMU Ticks", "${imuSummary.totalSamples}")
                             MetricCounterCol("Bosch Packets", "${boschSamples.size}")
                             MetricCounterCol("Transitions", "${stateIntervals.size}")
                             MetricCounterCol("Markers", "${rideMarkers.size}")
@@ -383,12 +383,13 @@ fun SessionCard(
                             }
                             Button(
                                 onClick = {
-                                    val report = boschReport ?: SessionExportHelper.computeBoschReport(imuSamples, boschSamples)
                                     coroutineScope.launch(Dispatchers.IO) {
+                                        val fullImuSamples = logRepository.getImuSamples(session.id).first()
+                                        val report = SessionExportHelper.computeBoschReport(fullImuSamples, boschSamples)
                                         SessionExportHelper.exportAndShareSessionCsv(
                                             context = context,
                                             session = session,
-                                            imuSamples = imuSamples,
+                                            imuSamples = fullImuSamples,
                                             boschSamples = boschSamples,
                                             markers = rideMarkers,
                                             report = report

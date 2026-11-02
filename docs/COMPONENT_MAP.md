@@ -1,13 +1,14 @@
 # Pretty Nights — Component Map & Directory Catalog
 
-## 1. Package Directory Hierarchy (All 34 Source Files)
+## 1. Package Directory Hierarchy (All 37 Source Files)
 
 ```
 app/src/main/java/com/example/
 ├── MainActivity.kt               # Entry-point Activity, bottom navigation bar, edge-to-edge M3 scaffold
 ├── PrettyNightsApp.kt            # Application singleton, dependency container, service bindings
 ├── config/                       # Configuration persistence & data models
-│   └── ConfigManager.kt          # AppConfig, WledLook, SpeedSource, Calibration, DataStore JSON persistence
+│   ├── ConfigManager.kt          # AppConfig, WledLook, SpeedSource, Calibration, DataStore JSON persistence
+│   └── DomainEnums.kt            # Typed domain enums: SpeedSourceMode, SensorAxis, RideMarkerType, Io13PinRole, SegmentTarget
 ├── home/                         # Home Cockpit Dashboard & real-time monitoring
 │   ├── HomeScreen.kt             # Dashboard layout: Readiness, Action Controls, Visualizer, bottom Log-Only card
 │   ├── HomeReadinessCard.kt      # WLED reachability pill (or LOG ONLY badge), Bosch BLE status, live metrics
@@ -15,7 +16,9 @@ app/src/main/java/com/example/
 │   └── HomeVisualizerCard.kt     # Interactive bike frame LED preview & 16-band live audio FFT visualizer
 ├── patterns/                     # Lighting Look customizer & WLED presets
 │   ├── PatternsScreen.kt         # Per-state look tabs (IDLE, CRUISING, BRAKING) & controller sync
-│   ├── StateLookCard.kt          # Preset vs Custom segment editor, effect/palette dropdowns, speed/intensity
+│   ├── StateLookCard.kt          # Expandable look card shell, Preset/Custom mode tabs, and live preview trigger
+│   ├── PresetLookSection.kt      # WLED controller preset selector dropdown & brightness override notice
+│   ├── CustomLookSection.kt      # Segment routing (IO16/IO2), effect/palette dropdowns, RGB sliders & transitions
 │   └── ColorPickerSliders.kt     # Interactive 3-slot RGB color swatches and channel sliders
 ├── settings/                     # User preferences & hardware calibration (Config Tab)
 │   ├── SettingsScreen.kt         # System & Hardware Config container and entry point to Developer Tuning

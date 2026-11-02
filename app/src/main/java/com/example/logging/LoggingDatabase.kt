@@ -176,6 +176,12 @@ interface WledIntervalDao {
     suspend fun deleteIntervalsForSession(sessionId: Long)
 }
 
+data class ImuSessionSummary(
+    val totalSamples: Int = 0,
+    val freshBoschSamples: Int = 0,
+    val maxBoschSpeedKmh: Float? = null
+)
+
 @Dao
 interface ImuSampleDao {
     @Insert
@@ -186,6 +192,18 @@ interface ImuSampleDao {
 
     @Query("SELECT * FROM imu_samples WHERE sessionId = :sessionId ORDER BY timestampMonotonicMs ASC")
     fun getSamplesForSession(sessionId: Long): Flow<List<ImuSampleEntity>>
+
+    @Query(
+        """
+        SELECT 
+            COUNT(*) AS totalSamples,
+            COALESCE(SUM(CASE WHEN boschAgeMs BETWEEN 0 AND 3999 THEN 1 ELSE 0 END), 0) AS freshBoschSamples,
+            MAX(boschSpeedKmh) AS maxBoschSpeedKmh
+        FROM imu_samples
+        WHERE sessionId = :sessionId
+        """
+    )
+    suspend fun getSessionSummary(sessionId: Long): ImuSessionSummary
 
     @Query("DELETE FROM imu_samples WHERE sessionId = :sessionId")
     suspend fun deleteSamplesForSession(sessionId: Long)
@@ -347,6 +365,9 @@ class LogRepository(private val db: LoggingDatabase) {
 
     fun getImuSamples(sessionId: Long): Flow<List<ImuSampleEntity>> =
         db.imuSampleDao().getSamplesForSession(sessionId)
+
+    suspend fun getImuSessionSummary(sessionId: Long): ImuSessionSummary =
+        db.imuSampleDao().getSessionSummary(sessionId)
 
     fun getBoschSamples(sessionId: Long): Flow<List<BoschSampleEntity>> =
         db.boschSampleDao().getSamplesForSession(sessionId)

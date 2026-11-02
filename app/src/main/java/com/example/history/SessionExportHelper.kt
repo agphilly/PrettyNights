@@ -45,32 +45,7 @@ object SessionExportHelper {
         imuSamples: List<ImuSampleEntity>,
         boschSamples: List<BoschSampleEntity>
     ): BoschSessionReliabilityReport {
-        val totalNotifs = boschSamples.size
-        val decodeSuccess = boschSamples.count { it.decodeSuccess }
-        val decodeErrors = totalNotifs - decodeSuccess
-        val decodeSuccessPct = if (totalNotifs > 0) (decodeSuccess * 100f) / totalNotifs else 100f
-
-        val minMtu = boschSamples.minOfOrNull { it.negotiatedMtu } ?: 247
-        val maxMtu = boschSamples.maxOfOrNull { it.negotiatedMtu } ?: 247
-        val hasLdi003Warning = totalNotifs > 0 && minMtu < BoschLiveDataSpec.REQUIRED_ATT_MTU
-
-        // Notification intervals
-        var intervalSum = 0L
-        var intervalCount = 0
-        var maxInterval = 0L
-        for (i in 1 until boschSamples.size) {
-            val delta = (boschSamples[i].timestampMonotonicMs - boschSamples[i - 1].timestampMonotonicMs)
-                .coerceAtLeast(0L)
-            intervalSum += delta
-            intervalCount++
-            if (delta > maxInterval) maxInterval = delta
-        }
-        val avgInterval = if (intervalCount > 0) intervalSum / intervalCount else 0L
-
-        // Freshness uptime & stale transitions across 50 Hz IMU ticks
         val freshTicks = imuSamples.count { it.boschAgeMs in 0L..3999L }
-        val freshnessPct = if (imuSamples.isNotEmpty()) (freshTicks * 100f) / imuSamples.size else 0f
-
         var staleEvents = 0
         var wasFresh = false
         for (sample in imuSamples) {
@@ -80,6 +55,57 @@ object SessionExportHelper {
             }
             wasFresh = isFresh
         }
+        val summary = ImuSessionSummary(
+            totalSamples = imuSamples.size,
+            freshBoschSamples = freshTicks,
+            maxBoschSpeedKmh = imuSamples.mapNotNull { it.boschSpeedKmh }.maxOrNull()
+        )
+        return computeBoschReportFromSummary(
+            imuSummary = summary,
+            boschSamples = boschSamples,
+            exactStaleFallbackEvents = staleEvents
+        )
+    }
+
+    /**
+     * Computes the Bosch Live Data Interface V1.0 reliability report using a lightweight SQL
+     * `ImuSessionSummary` instead of loading all 50 Hz `ImuSampleEntity` rows into heap memory.
+     */
+    fun computeBoschReportFromSummary(
+        imuSummary: ImuSessionSummary,
+        boschSamples: List<BoschSampleEntity>,
+        exactStaleFallbackEvents: Int? = null
+    ): BoschSessionReliabilityReport {
+        val totalNotifs = boschSamples.size
+        val decodeSuccess = boschSamples.count { it.decodeSuccess }
+        val decodeErrors = totalNotifs - decodeSuccess
+        val decodeSuccessPct = if (totalNotifs > 0) (decodeSuccess * 100f) / totalNotifs else 100f
+
+        val minMtu = boschSamples.minOfOrNull { it.negotiatedMtu } ?: 247
+        val maxMtu = boschSamples.maxOfOrNull { it.negotiatedMtu } ?: 247
+        val hasLdi003Warning = totalNotifs > 0 && minMtu < BoschLiveDataSpec.REQUIRED_ATT_MTU
+
+        // Notification intervals & stale gap detection (> 4000 ms between notifications)
+        var intervalSum = 0L
+        var intervalCount = 0
+        var maxInterval = 0L
+        var derivedStaleGaps = 0
+        for (i in 1 until boschSamples.size) {
+            val delta = (boschSamples[i].timestampMonotonicMs - boschSamples[i - 1].timestampMonotonicMs)
+                .coerceAtLeast(0L)
+            intervalSum += delta
+            intervalCount++
+            if (delta > maxInterval) maxInterval = delta
+            if (delta >= 4000L) derivedStaleGaps++
+        }
+        val avgInterval = if (intervalCount > 0) intervalSum / intervalCount else 0L
+
+        val freshnessPct = if (imuSummary.totalSamples > 0) {
+            (imuSummary.freshBoschSamples * 100f) / imuSummary.totalSamples
+        } else {
+            0f
+        }
+        val staleEvents = exactStaleFallbackEvents ?: derivedStaleGaps
 
         // Speed delta |Bosch - GPS|
         val validDeltas = boschSamples.mapNotNull { b ->
@@ -87,7 +113,7 @@ object SessionExportHelper {
         }
         val meanDelta = if (validDeltas.isNotEmpty()) validDeltas.average().toFloat() else 0f
         val maxBoschSpeed = boschSamples.mapNotNull { it.speedKmh }.maxOrNull()
-            ?: imuSamples.mapNotNull { it.boschSpeedKmh }.maxOrNull()
+            ?: imuSummary.maxBoschSpeedKmh
             ?: 0f
 
         val cadences = boschSamples.mapNotNull { it.cadenceRpm }

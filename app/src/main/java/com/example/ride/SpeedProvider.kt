@@ -16,6 +16,20 @@ interface SpeedProvider {
     val speed: Float             // Current speed in m/s
     val lastUpdateTimeMs: Long   // SystemClock.elapsedRealtime() timestamp
     val isAvailable: Boolean
+
+    // Unified telemetry accessors (eliminating downcasts to FusedSpeedProvider)
+    val gpsSpeedMps: Float
+        get() = speed
+
+    val activeSpeedSource: String
+        get() = "GPS"
+
+    val boschLiveState: BoschLiveDataState?
+        get() = null
+
+    fun addBoschPacketListener(listener: (BoschLiveDataPacket, BoschLiveDataState) -> Unit) {}
+    fun removeBoschPacketListener(listener: (BoschLiveDataPacket, BoschLiveDataState) -> Unit) {}
+
     fun start()
     fun stop()
 }
@@ -125,6 +139,12 @@ class BoschSpeedProvider(
     val liveState: BoschLiveDataState
         get() = _liveStateFlow.value
 
+    override val boschLiveState: BoschLiveDataState
+        get() = _liveStateFlow.value
+
+    override val activeSpeedSource: String
+        get() = "BOSCH"
+
     private val packetListeners = CopyOnWriteArrayList<(BoschLiveDataPacket, BoschLiveDataState) -> Unit>()
 
     private var bleClient: BoschLiveDataClient? = null
@@ -151,6 +171,14 @@ class BoschSpeedProvider(
 
     fun removePacketListener(listener: (BoschLiveDataPacket, BoschLiveDataState) -> Unit) {
         packetListeners.remove(listener)
+    }
+
+    override fun addBoschPacketListener(listener: (BoschLiveDataPacket, BoschLiveDataState) -> Unit) {
+        addPacketListener(listener)
+    }
+
+    override fun removeBoschPacketListener(listener: (BoschLiveDataPacket, BoschLiveDataState) -> Unit) {
+        removePacketListener(listener)
     }
 
     override fun start() {
@@ -223,14 +251,20 @@ class FusedSpeedProvider(
     private val getSourcePref: () -> String // "GPS_ONLY" / "GPS", "BOSCH_PREFERRED", "BOSCH_ONLY"
 ) : SpeedProvider {
 
-    val activeSpeedSource: String
+    override val gpsSpeedMps: Float
+        get() = gpsProvider.speed
+
+    override val boschLiveState: BoschLiveDataState
+        get() = boschProvider.liveState
+
+    override val activeSpeedSource: String
         get() {
-            val pref = getSourcePref()
+            val mode = com.example.config.SpeedSourceMode.fromWireValue(getSourcePref())
             val now = SystemClock.elapsedRealtime()
-            return when (pref) {
-                "GPS", "GPS_ONLY" -> "GPS"
-                "BOSCH_ONLY" -> "BOSCH"
-                else -> { // "BOSCH_PREFERRED"
+            return when (mode) {
+                com.example.config.SpeedSourceMode.GPS_ONLY -> "GPS"
+                com.example.config.SpeedSourceMode.BOSCH_ONLY -> "BOSCH"
+                com.example.config.SpeedSourceMode.BOSCH_PREFERRED -> {
                     val boschLast = boschProvider.lastUpdateTimeMs
                     val boschFresh = boschLast > 0L && (now - boschLast) < BoschSpeedProvider.BOSCH_STALE_TIMEOUT_MS
                     if (boschFresh) "BOSCH" else "GPS_FALLBACK"
@@ -256,13 +290,21 @@ class FusedSpeedProvider(
 
     override val isAvailable: Boolean
         get() {
-            val pref = getSourcePref()
-            return when (pref) {
-                "GPS", "GPS_ONLY" -> gpsProvider.isAvailable
-                "BOSCH_ONLY" -> boschProvider.isAvailable
-                else -> gpsProvider.isAvailable || boschProvider.isAvailable
+            val mode = com.example.config.SpeedSourceMode.fromWireValue(getSourcePref())
+            return when (mode) {
+                com.example.config.SpeedSourceMode.GPS_ONLY -> gpsProvider.isAvailable
+                com.example.config.SpeedSourceMode.BOSCH_ONLY -> boschProvider.isAvailable
+                com.example.config.SpeedSourceMode.BOSCH_PREFERRED -> gpsProvider.isAvailable || boschProvider.isAvailable
             }
         }
+
+    override fun addBoschPacketListener(listener: (BoschLiveDataPacket, BoschLiveDataState) -> Unit) {
+        boschProvider.addPacketListener(listener)
+    }
+
+    override fun removeBoschPacketListener(listener: (BoschLiveDataPacket, BoschLiveDataState) -> Unit) {
+        boschProvider.removePacketListener(listener)
+    }
 
     override fun start() {
         // Always start BOTH providers so 100% of GPS + Bosch Live Data V1.0 telemetry is logged

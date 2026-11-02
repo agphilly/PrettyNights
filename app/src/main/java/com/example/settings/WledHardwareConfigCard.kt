@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.PrettyNightsApp
 import com.example.config.AppConfig
+import com.example.config.Io13PinRole
 import com.example.config.WledHardwareConfig
 import com.example.wled.WledHardwareLiveInfo
 import kotlinx.coroutines.Dispatchers
@@ -62,7 +63,7 @@ fun WledHardwareConfigCard(
     val seg1Start = seg0Stop
     val seg1Stop = if (hw.ch2Enabled) seg1Start + hw.ch2LedCount.coerceAtLeast(1) else seg1Start
     val seg2Start = seg1Stop
-    val seg2Stop = if (hw.io13Role == "STRIP_CH3") seg2Start + hw.ch3LedCount.coerceAtLeast(1) else seg2Start
+    val seg2Stop = if (Io13PinRole.fromWireValue(hw.io13Role) == Io13PinRole.STRIP_CH3) seg2Start + hw.ch3LedCount.coerceAtLeast(1) else seg2Start
 
     Card(
         modifier = Modifier
@@ -461,13 +462,9 @@ fun WledHardwareConfigCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    listOf(
-                        "PUSHBUTTON" to "Pushbutton",
-                        "REED_SWITCH" to "Reed Switch",
-                        "STRIP_CH3" to "3rd LED Strip",
-                        "DISABLED" to "Disabled"
-                    ).forEach { (roleKey, label) ->
-                        val selected = hw.io13Role == roleKey
+                    Io13PinRole.entries.forEach { role ->
+                        val roleKey = role.wireValue
+                        val selected = Io13PinRole.fromWireValue(hw.io13Role) == role
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -484,7 +481,7 @@ fun WledHardwareConfigCard(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = label,
+                                text = role.displayLabel,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
@@ -493,7 +490,7 @@ fun WledHardwareConfigCard(
                     }
                 }
 
-                if (hw.io13Role == "STRIP_CH3") {
+                if (Io13PinRole.fromWireValue(hw.io13Role) == Io13PinRole.STRIP_CH3) {
                     OutlinedTextField(
                         value = ch3CountText,
                         onValueChange = { text ->
@@ -542,7 +539,7 @@ fun WledHardwareConfigCard(
                         fontSize = 11.sp
                     )
                 }
-                if (hw.io13Role == "STRIP_CH3") {
+                if (Io13PinRole.fromWireValue(hw.io13Role) == Io13PinRole.STRIP_CH3) {
                     Text(
                         text = "• Seg 2 (Aux IO13): index $seg2Start .. $seg2Stop (${hw.ch3LedCount} LEDs on GPIO 13)",
                         fontFamily = FontFamily.Monospace,

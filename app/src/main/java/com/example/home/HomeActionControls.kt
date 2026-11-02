@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.config.RideMarkerType
 
 @Composable
 fun HomeActionControls(
@@ -166,15 +167,15 @@ fun HomeActionControls(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     MarkerStampButton(
-                        label = "Hard Brake",
-                        markerType = "HARD_BRAKE",
+                        label = RideMarkerType.HARD_BRAKE.displayLabel,
+                        markerType = RideMarkerType.HARD_BRAKE.wireValue,
                         color = Color(0xFFC62828),
                         modifier = Modifier.weight(1f),
                         onStamp = onStampMarker
                     )
                     MarkerStampButton(
-                        label = "Light Brake",
-                        markerType = "LIGHT_BRAKE",
+                        label = RideMarkerType.LIGHT_BRAKE.displayLabel,
+                        markerType = RideMarkerType.LIGHT_BRAKE.wireValue,
                         color = Color(0xFFEF6C00),
                         modifier = Modifier.weight(1f),
                         onStamp = onStampMarker
@@ -186,15 +187,15 @@ fun HomeActionControls(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     MarkerStampButton(
-                        label = "Road Bump",
-                        markerType = "ROAD_BUMP",
+                        label = RideMarkerType.ROAD_BUMP.displayLabel,
+                        markerType = RideMarkerType.ROAD_BUMP.wireValue,
                         color = Color(0xFF6A1B9A),
                         modifier = Modifier.weight(1f),
                         onStamp = onStampMarker
                     )
                     MarkerStampButton(
-                        label = "Bosch Glitch",
-                        markerType = "BOSCH_GLITCH",
+                        label = RideMarkerType.BOSCH_GLITCH.displayLabel,
+                        markerType = RideMarkerType.BOSCH_GLITCH.wireValue,
                         color = Color(0xFF00838F),
                         modifier = Modifier.weight(1f),
                         onStamp = onStampMarker

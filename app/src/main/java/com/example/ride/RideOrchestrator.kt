@@ -10,6 +10,8 @@ import android.util.Log
 import com.example.PrettyNightsApp
 import com.example.config.AppConfig
 import com.example.config.ConfigManager
+import com.example.config.RideMarkerType
+import com.example.config.SensorAxis
 import com.example.config.WledLook
 import com.example.logging.*
 import com.example.safety.LockController
@@ -25,6 +27,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class RideOrchestrator(
@@ -33,28 +37,57 @@ class RideOrchestrator(
     private val lockController: LockController,
     private val logRepository: LogRepository,
     private val speedProvider: SpeedProvider,
-    private val wledController: WledController
+    private val wledController: WledController,
+    private val onSpeedSourceCached: (String) -> Unit = { source ->
+        try {
+            PrettyNightsApp.instance.cachedSpeedSource = source
+        } catch (_: Exception) {
+        }
+    }
 ) : SensorEventListener {
 
     private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val lifecycleMutex = Mutex()
+    private val intervalMutex = Mutex()
+
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val accelerometer: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
 
-    // Current session properties
-    private var activeSessionId: Long? = null
-    var isRunning = false
+    // Reusable Moshi instance & adapter (instantiated once instead of per WLED interval transition)
+    private val moshi: Moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
+    private val wledLookAdapter = moshi.adapter(WledLook::class.java)
 
-    // State machine
+    // Cross-thread session & state machine properties
+    @Volatile
+    private var activeSessionId: Long? = null
+
+    @Volatile
+    var isRunning: Boolean = false
+
+    @Volatile
     private var activeConfig: AppConfig = AppConfig()
     private val stateMachine = RideStateMachine { activeConfig.stateMachine }
 
     // WLED Sink throttling state (MANDATORY per System Design Section 5 & 6)
+    @Volatile
     private var lastSentLook: WledLook? = null
+
+    @Volatile
     private var lastSentState: RideState? = null
+
+    @Volatile
     private var lastSentBrightness: Float = -1f
+
+    @Volatile
     private var lastSendTimeMs: Long = 0L
 
-    // State interval and Wled interval logging references
+    // Synchronous transition tracking on sensor thread; DB writes serialized via intervalMutex
+    @Volatile
+    private var lastLoggedState: RideState? = null
+
+    @Volatile
+    private var lastLoggedLook: WledLook? = null
+
     private var currentStateIntervalId: Long? = null
     private var currentWledIntervalId: Long? = null
     private var activeStateInterval: StateIntervalEntity? = null
@@ -80,8 +113,7 @@ class RideOrchestrator(
     private val boschPacketListener: (BoschLiveDataPacket, BoschLiveDataState) -> Unit = { packet, _ ->
         val sessionId = activeSessionId
         if (isRunning && sessionId != null) {
-            val fused = speedProvider as? FusedSpeedProvider
-            val gpsKmh = (fused?.gpsProvider?.speed ?: 0f) * 3.6f
+            val gpsKmh = speedProvider.gpsSpeedMps * 3.6f
             val entity = BoschSampleEntity(
                 sessionId = sessionId,
                 timestampMonotonicMs = packet.timestampMonotonicMs,
@@ -120,6 +152,10 @@ class RideOrchestrator(
         onDiagnosticsUpdate = listener
     }
 
+    fun recordRideMarker(markerType: RideMarkerType, note: String = "") {
+        recordRideMarker(markerType.wireValue, note)
+    }
+
     /**
      * Records a live in-ride event marker (e.g., HARD_BRAKE, LIGHT_BRAKE, ROAD_BUMP, BOSCH_GLITCH)
      * during any active ride (both WLED-enabled and Log-Only rides).
@@ -156,53 +192,58 @@ class RideOrchestrator(
         configCollectionJob = coroutineScope.launch {
             configManager.configFlow.collect { config ->
                 activeConfig = config
-                PrettyNightsApp.instance.cachedSpeedSource = config.speedSource
+                onSpeedSourceCached(config.speedSource)
             }
         }
 
         coroutineScope.launch {
-            // Load fresh configuration snapshot
-            val freshConfig = configManager.getConfigSnapshot()
-            activeConfig = freshConfig
-            PrettyNightsApp.instance.cachedSpeedSource = freshConfig.speedSource
-            val nowWallMs = System.currentTimeMillis()
-            val nowMonoMs = SystemClock.elapsedRealtime()
+            lifecycleMutex.withLock {
+                // If stop() was invoked before start() acquired lifecycleMutex, abort startup cleanly
+                if (!isRunning) return@withLock
 
-            // 1. Initialize Logging Session in Room BEFORE starting providers so initial packets are captured
-            val sessionId = logRepository.startSession(
-                startTimeMillis = nowWallMs,
-                startMonotonicMs = nowMonoMs,
-                logOnlyMode = freshConfig.logOnlyMode,
-                configuredSpeedSource = freshConfig.speedSource
-            )
-            activeSessionId = sessionId
+                val freshConfig = configManager.getConfigSnapshot()
+                activeConfig = freshConfig
+                onSpeedSourceCached(freshConfig.speedSource)
+                val nowWallMs = System.currentTimeMillis()
+                val nowMonoMs = SystemClock.elapsedRealtime()
 
-            // 2. Register Bosch V1.0 packet listener & start both GPS and Bosch speed providers in parallel
-            val fused = speedProvider as? FusedSpeedProvider
-            fused?.boschProvider?.addPacketListener(boschPacketListener)
-            speedProvider.start()
+                // 1. Initialize Logging Session in Room BEFORE starting providers so initial packets are captured
+                val sessionId = logRepository.startSession(
+                    startTimeMillis = nowWallMs,
+                    startMonotonicMs = nowMonoMs,
+                    logOnlyMode = freshConfig.logOnlyMode,
+                    configuredSpeedSource = freshConfig.speedSource
+                )
+                activeSessionId = sessionId
 
-            // 3. Reset State Machine
-            stateMachine.getAndResetState(nowMonoMs)
-            _telemetryFlow.value = enrichTelemetry(stateMachine.latestTelemetry, nowMonoMs)
+                // 2. Register Bosch V1.0 packet listener & start speed providers via SpeedProvider contract
+                speedProvider.addBoschPacketListener(boschPacketListener)
+                speedProvider.start()
 
-            // 4. Log initial IDLE state interval
-            logStateIntervalEntry(sessionId, RideState.IDLE, nowMonoMs, activeConfig.stateMachine.idleBrightness)
+                // 3. Reset State Machine
+                stateMachine.getAndResetState(nowMonoMs)
+                _telemetryFlow.value = enrichTelemetry(stateMachine.latestTelemetry, nowMonoMs)
 
-            // 5. Send initial look to WLED (or record virtual WLED interval if logOnlyMode == true)
-            val initialLook = activeConfig.idleLook
-            sendToWled(initialLook, RideState.IDLE, activeConfig.stateMachine.idleBrightness, nowMonoMs)
-            logWledIntervalEntry(sessionId, RideState.IDLE, initialLook, nowMonoMs)
+                // 4. Log initial IDLE state interval & WLED interval sequentially
+                val initialLook = activeConfig.idleLook
+                lastLoggedState = RideState.IDLE
+                lastLoggedLook = initialLook
+                logStateIntervalEntry(sessionId, RideState.IDLE, nowMonoMs, activeConfig.stateMachine.idleBrightness)
 
-            // 6. Register Sensors
-            accelerometer?.let {
-                sensorManager.registerListener(this@RideOrchestrator, it, SensorManager.SENSOR_DELAY_GAME)
+                // 5. Send initial look to WLED (or record virtual WLED interval if logOnlyMode == true)
+                sendToWled(initialLook, RideState.IDLE, activeConfig.stateMachine.idleBrightness, nowMonoMs)
+                logWledIntervalEntry(sessionId, RideState.IDLE, initialLook, nowMonoMs)
+
+                // 6. Register Sensors
+                accelerometer?.let {
+                    sensorManager.registerListener(this@RideOrchestrator, it, SensorManager.SENSOR_DELAY_GAME)
+                }
+
+                // 7. Start Background Batch Writer for high-rate IMU datasets
+                startBatchWriter(sessionId)
+
+                updateLock(RideState.IDLE)
             }
-
-            // 7. Start Background Batch Writer for high-rate IMU datasets
-            startBatchWriter(sessionId)
-
-            updateLock(RideState.IDLE)
         }
     }
 
@@ -211,52 +252,60 @@ class RideOrchestrator(
         isRunning = false
 
         coroutineScope.launch {
-            val nowMonoMs = SystemClock.elapsedRealtime()
+            lifecycleMutex.withLock {
+                val nowMonoMs = SystemClock.elapsedRealtime()
 
-            // 1. Unregister Sensors
-            sensorManager.unregisterListener(this@RideOrchestrator)
+                // 1. Unregister Sensors
+                sensorManager.unregisterListener(this@RideOrchestrator)
 
-            // 2. Unregister Bosch listener and stop speed providers
-            val fused = speedProvider as? FusedSpeedProvider
-            fused?.boschProvider?.removePacketListener(boschPacketListener)
-            speedProvider.stop()
+                // 2. Unregister Bosch listener and stop speed providers
+                speedProvider.removeBoschPacketListener(boschPacketListener)
+                speedProvider.stop()
 
-            // 3. Close open Logging Intervals & flush remaining IMU samples
-            activeSessionId?.let { sessionId ->
-                closeStateInterval(nowMonoMs, stateMachine.lastOutputBrightness)
-                closeWledInterval(nowMonoMs)
+                // 3. Close open Logging Intervals & flush remaining IMU samples
+                activeSessionId?.let { sessionId ->
+                    closeStateInterval(nowMonoMs, stateMachine.lastOutputBrightness)
+                    closeWledInterval(nowMonoMs)
 
-                val remainingSamples = mutableListOf<ImuSampleEntity>()
-                while (imuSampleBuffer.isNotEmpty()) {
-                    imuSampleBuffer.poll()?.let { remainingSamples.add(it) }
+                    // Wait for queued interval writes to finish before closing session
+                    intervalMutex.withLock {
+                        // Drain barrier ensuring open/close interval writes have completed
+                    }
+
+                    val remainingSamples = mutableListOf<ImuSampleEntity>()
+                    while (imuSampleBuffer.isNotEmpty()) {
+                        imuSampleBuffer.poll()?.let { remainingSamples.add(it) }
+                    }
+                    logRepository.insertImuSamples(remainingSamples)
+
+                    // Close Room Session Record
+                    logRepository.endSession(sessionId, nowMonoMs)
                 }
-                logRepository.insertImuSamples(remainingSamples)
 
-                // Close Room Session Record
-                logRepository.endSession(sessionId, nowMonoMs)
+                // 4. Reset safety state
+                lockController.forceUnlock()
+
+                // 5. Cancel batch logger coroutine
+                batchLoggingJob?.cancel()
+                batchLoggingJob = null
+
+                configCollectionJob?.cancel()
+                configCollectionJob = null
+
+                activeSessionId = null
+                lastSentLook = null
+                lastSentState = null
+                lastLoggedState = null
+                lastLoggedLook = null
+                lastSentBrightness = -1f
+                lastSendTimeMs = 0L
+                _markerCountFlow.value = 0
+                _lastMarkerLabelFlow.value = null
+
+                // Re-trigger static idle callback
+                onDiagnosticsUpdate?.invoke("Stopped", RideState.IDLE, 0f)
+                _telemetryFlow.value = null
             }
-
-            // 4. Reset safety state
-            lockController.forceUnlock()
-
-            // 5. Cancel batch logger coroutine
-            batchLoggingJob?.cancel()
-            batchLoggingJob = null
-
-            configCollectionJob?.cancel()
-            configCollectionJob = null
-
-            activeSessionId = null
-            lastSentLook = null
-            lastSentState = null
-            lastSentBrightness = -1f
-            lastSendTimeMs = 0L
-            _markerCountFlow.value = 0
-            _lastMarkerLabelFlow.value = null
-
-            // Re-trigger static idle callback
-            onDiagnosticsUpdate?.invoke("Stopped", RideState.IDLE, 0f)
-            _telemetryFlow.value = null
         }
     }
 
@@ -273,20 +322,19 @@ class RideOrchestrator(
         val rawY = event.values[1]
         val rawZ = event.values[2]
 
-        val projectedAcceleration = when (activeConfig.sensorAxis.uppercase()) {
-            "X" -> rawX
-            "Z" -> rawZ
-            else -> rawY
+        val projectedAcceleration = when (SensorAxis.fromWireValue(activeConfig.sensorAxis)) {
+            SensorAxis.X -> rawX
+            SensorAxis.Z -> rawZ
+            SensorAxis.Y -> rawY
         } * activeConfig.sensorSign
 
-        // Retrieve parallel GPS + Bosch Live Data V1.0 telemetry
-        val fused = speedProvider as? FusedSpeedProvider
-        val gpsSpeedKmh = (fused?.gpsProvider?.speed ?: speedProvider.speed) * 3.6f
-        val boschLiveState = fused?.boschProvider?.liveState
+        // Retrieve parallel GPS + Bosch Live Data V1.0 telemetry via SpeedProvider interface
+        val gpsSpeedKmh = speedProvider.gpsSpeedMps * 3.6f
+        val boschLiveState = speedProvider.boschLiveState
         val boschLastMs = boschLiveState?.lastUpdateMonotonicMs ?: 0L
         val boschAgeMs = if (boschLastMs > 0L) (nowMono - boschLastMs) else -1L
         val boschSpeedKmh = if (boschLastMs > 0L) boschLiveState?.speedKmh else null
-        val activeSource = fused?.activeSpeedSource ?: "GPS"
+        val activeSource = speedProvider.activeSpeedSource
         val currentSpeedKmh = speedProvider.speed * 3.6f
 
         // Tick State Machine (passing Bosch Field 25 `bike_not_driving` for idle corroboration)
@@ -354,16 +402,15 @@ class RideOrchestrator(
     }
 
     private fun enrichTelemetry(base: StateMachineTelemetry, nowMono: Long): StateMachineTelemetry {
-        val fused = speedProvider as? FusedSpeedProvider
-        val gpsSpeedKmh = (fused?.gpsProvider?.speed ?: speedProvider.speed) * 3.6f
-        val boschState = fused?.boschProvider?.liveState
+        val gpsSpeedKmh = speedProvider.gpsSpeedMps * 3.6f
+        val boschState = speedProvider.boschLiveState
         val boschLastMs = boschState?.lastUpdateMonotonicMs ?: 0L
         val boschAgeMs = if (boschLastMs > 0L) (nowMono - boschLastMs) else -1L
         val boschSpeedKmh = if (boschLastMs > 0L) boschState?.speedKmh else null
 
         return base.copy(
             logOnlyMode = activeConfig.logOnlyMode,
-            activeSpeedSource = fused?.activeSpeedSource ?: "GPS",
+            activeSpeedSource = speedProvider.activeSpeedSource,
             gpsSpeedKmh = gpsSpeedKmh,
             boschSpeedKmh = boschSpeedKmh,
             boschAgeMs = boschAgeMs,
@@ -411,19 +458,21 @@ class RideOrchestrator(
         }
     }
 
-    // --- INTERVAL STATE LOGGERS ---
+    // --- SEQUENTIAL INTERVAL STATE LOGGERS ---
 
     private fun evalAndLogIntervals(output: StateMachineOutput, look: WledLook, now: Long) {
         val sessionId = activeSessionId ?: return
 
-        // 1. Track State changes
-        if (output.state != activeStateInterval?.stateName?.let { RideState.valueOf(it) }) {
+        // 1. Track State changes synchronously on sensor thread; serialize DB writes via intervalMutex
+        if (output.state != lastLoggedState) {
+            lastLoggedState = output.state
             closeStateInterval(now, output.brightness)
             logStateIntervalEntry(sessionId, output.state, now, output.brightness)
         }
 
-        // 2. Track WLED Look changes
-        if (look != lastSentLook) {
+        // 2. Track WLED Look changes synchronously on sensor thread; serialize DB writes via intervalMutex
+        if (look != lastLoggedLook) {
+            lastLoggedLook = look
             closeWledInterval(now)
             logWledIntervalEntry(sessionId, output.state, look, now)
         }
@@ -437,60 +486,65 @@ class RideOrchestrator(
             startBrightness = brightness,
             endBrightness = brightness
         )
-        activeStateInterval = interval
         coroutineScope.launch {
-            currentStateIntervalId = logRepository.insertStateInterval(interval)
+            intervalMutex.withLock {
+                activeStateInterval = interval
+                currentStateIntervalId = logRepository.insertStateInterval(interval)
+            }
         }
     }
 
     private fun closeStateInterval(now: Long, brightness: Float) {
-        val intervalId = currentStateIntervalId
-        val interval = activeStateInterval
-        if (intervalId != null && interval != null) {
-            val closed = interval.copy(
-                id = intervalId,
-                endTimeMonotonicMs = now,
-                endBrightness = brightness
-            )
-            coroutineScope.launch {
-                logRepository.updateStateInterval(closed)
+        coroutineScope.launch {
+            intervalMutex.withLock {
+                val intervalId = currentStateIntervalId
+                val interval = activeStateInterval
+                if (intervalId != null && interval != null) {
+                    val closed = interval.copy(
+                        id = intervalId,
+                        endTimeMonotonicMs = now,
+                        endBrightness = brightness
+                    )
+                    logRepository.updateStateInterval(closed)
+                }
+                currentStateIntervalId = null
+                activeStateInterval = null
             }
         }
-        currentStateIntervalId = null
-        activeStateInterval = null
     }
 
     private fun logWledIntervalEntry(sessionId: Long, state: RideState, look: WledLook, now: Long) {
-        val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
-        val adapter = moshi.adapter(WledLook::class.java)
-        val lookJson = adapter.toJson(look)
-
+        val lookJson = wledLookAdapter.toJson(look)
         val interval = WledIntervalEntity(
             sessionId = sessionId,
             stateName = state.name,
             startTimeMonotonicMs = now,
             lookJson = lookJson
         )
-        activeWledInterval = interval
         coroutineScope.launch {
-            currentWledIntervalId = logRepository.insertWledInterval(interval)
+            intervalMutex.withLock {
+                activeWledInterval = interval
+                currentWledIntervalId = logRepository.insertWledInterval(interval)
+            }
         }
     }
 
     private fun closeWledInterval(now: Long) {
-        val intervalId = currentWledIntervalId
-        val interval = activeWledInterval
-        if (intervalId != null && interval != null) {
-            val closed = interval.copy(
-                id = intervalId,
-                endTimeMonotonicMs = now
-            )
-            coroutineScope.launch {
-                logRepository.updateWledInterval(closed)
+        coroutineScope.launch {
+            intervalMutex.withLock {
+                val intervalId = currentWledIntervalId
+                val interval = activeWledInterval
+                if (intervalId != null && interval != null) {
+                    val closed = interval.copy(
+                        id = intervalId,
+                        endTimeMonotonicMs = now
+                    )
+                    logRepository.updateWledInterval(closed)
+                }
+                currentWledIntervalId = null
+                activeWledInterval = null
             }
         }
-        currentWledIntervalId = null
-        activeWledInterval = null
     }
 
     // --- HIGH SPEED IMU ROOM WRITER BATCH JOB ---

@@ -37,7 +37,40 @@ All notable changes, architectural milestones, and component updates for the **P
 ---
 
 ## [Unreleased]
-*No unreleased changes currently staged. Changes made after Build 9 (`v1.8.0`) will appear here until the next GitHub push.*
+*No unreleased changes currently staged. Changes made after Build 10 (`v1.9.0`) will appear here until the next GitHub push.*
+
+---
+
+## [Build 10 — v1.9.0] - 2026-11-01
+**Suggested Git Commit:** `refactor(core): fix RideOrchestrator lifecycle/interval races, remove SpeedProvider casts, add typed enums, split StateLookCard, and optimize History SQL summary`
+
+### Added
+- **Typed Domain Enums (`/app/src/main/java/com/example/config/DomainEnums.kt`)**:
+  - Added `SpeedSourceMode` (`GPS_ONLY`, `BOSCH_PREFERRED`, `BOSCH_ONLY`), `SensorAxis` (`X`, `Y`, `Z`), `RideMarkerType` (`HARD_BRAKE`, `LIGHT_BRAKE`, `ROAD_BUMP`, `BOSCH_GLITCH`), `Io13PinRole` (`PUSHBUTTON`, `REED_SWITCH`, `STRIP_CH3`, `DISABLED`), and `SegmentTarget` (`BOTH`, `SEG_0_IO16`, `SEG_1_IO2`) with backwards-compatible wire string helpers.
+- **Modular Pattern Editor Sections (`PresetLookSection.kt` & `CustomLookSection.kt`)**:
+  - Extracted WLED preset selection and custom segment/effect/palette/RGB editors into dedicated files, reducing `StateLookCard.kt` from 784 lines to 281 lines.
+- **Lightweight SQL Session Summary (`ImuSessionSummary` in `LoggingDatabase.kt` & `SessionExportHelper.kt`)**:
+  - Added `ImuSampleDao.getSessionSummary(sessionId)` and `SessionExportHelper.computeBoschReportFromSummary(...)` so expanding a session card in `HistoryScreen` executes a single-row SQL summary query instead of loading all 50 Hz `ImuSampleEntity` rows into heap memory.
+
+### Fixed
+- **`RideOrchestrator` Start/Stop & Interval Concurrency**:
+  - Serialized `start()` and `stop()` via `lifecycleMutex` so a rapid `stop()` during startup cannot leave the 50 Hz accelerometer listener registered indefinitely.
+  - Serialized `StateIntervalEntity` and `WledIntervalEntity` open/close database operations via `intervalMutex` and synchronous sensor-thread transition tracking (`lastLoggedState`, `lastLoggedLook`).
+  - Marked cross-thread fields `@Volatile` and reused a single class-level `Moshi` / `wledLookAdapter` instance instead of rebuilding `Moshi.Builder()` on every WLED transition.
+- **Eliminated `FusedSpeedProvider` Downcasts**:
+  - Promoted `gpsSpeedMps`, `activeSpeedSource`, `boschLiveState`, `addBoschPacketListener`, and `removeBoschPacketListener` onto the `SpeedProvider` interface, removing all `speedProvider as? FusedSpeedProvider` casts in `RideOrchestrator.kt`.
+
+### Key Files Touched
+- `/app/src/main/java/com/example/config/DomainEnums.kt`
+- `/app/src/main/java/com/example/ride/RideOrchestrator.kt`
+- `/app/src/main/java/com/example/ride/SpeedProvider.kt`
+- `/app/src/main/java/com/example/patterns/StateLookCard.kt`
+- `/app/src/main/java/com/example/patterns/PresetLookSection.kt`
+- `/app/src/main/java/com/example/patterns/CustomLookSection.kt`
+- `/app/src/main/java/com/example/logging/LoggingDatabase.kt`
+- `/app/src/main/java/com/example/history/SessionExportHelper.kt`
+- `/app/src/main/java/com/example/history/HistoryScreen.kt`
+- `/app/src/test/java/com/example/ExampleUnitTest.kt`
 
 ---
 

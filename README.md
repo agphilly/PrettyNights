@@ -37,7 +37,7 @@ For complete functional requirements, state-machine matrices, packet layouts, UI
 | :--- | :--- |
 | [**`FEATURE_SPECIFICATIONS.md`**](./FEATURE_SPECIFICATIONS.md) | End-to-end product & engineering requirements, state formulas, packet schemas, and verification matrix. |
 | [**`docs/ARCHITECTURE.md`**](./docs/ARCHITECTURE.md) | System architecture diagram, 50 Hz sensor-to-WLED pipeline, foreground services, and persistence design. |
-| [**`docs/COMPONENT_MAP.md`**](./docs/COMPONENT_MAP.md) | Complete directory tree and file-by-file responsibilities across all 36 Kotlin source files and the Web Workbench. |
+| [**`docs/COMPONENT_MAP.md`**](./docs/COMPONENT_MAP.md) | Complete directory tree and file-by-file responsibilities across all 37 Kotlin source files and the Web Workbench. |
 | [**`docs/PROTOCOLS.md`**](./docs/PROTOCOLS.md) | WLED HTTP JSON API, UDP Port 11988 V2 binary layout, Bosch Live Data Interface V1.0 (`eb20`/`eb21`) protobuf spec, and IMU projection math. |
 | [**`docs/HARDWARE_SPEC.md`**](./docs/HARDWARE_SPEC.md) | NaveiTech `NV-LC616WL` ESP32-WLED controller electrical ratings, GPIO pinout (`IO16`/`IO2`/`IO13`), RJ45 Ethernet + Wi-Fi wiring diagrams, and WLED settings. |
 | [**`docs/TUNING_AND_TELEMETRY.md`**](./docs/TUNING_AND_TELEMETRY.md) | 12-step field-tuning methodology, `StateMachineConfig` parameter reference table, Replay Simulator, and Web Workbench workflow. |
@@ -117,11 +117,11 @@ You can synchronize this project with GitHub directly from **Google AI Studio** 
 | `com.example.home` | `HomeScreen`, `HomeReadinessCard`, `HomeActionControls`, and `HomeVisualizerCard`: live speed/state readout, Start/Stop Ride CTA, in-ride event marker bar, bike lighting/FFT visualizer, and bottom Log Only Mode toggle card. |
 | `com.example.ride` | `RideOrchestrator` (50 Hz sensor coordinator, WLED rate-limiter, Room batch logger), `RideService`, `MusicService` (1024-pt FFT + UDP V2), `SpeedProvider`, and `BoschLiveData` (`eb20`/`eb21` BLE client + protobuf decoder). |
 | `com.example.statemachine` | `RideStateMachine` pure deterministic evaluator (`IDLE`, `CRUISING`, `BRAKING`, `BRAKING_HOLD`), `StateMachineConfig`, and `StateMachineTelemetry`. |
-| `com.example.patterns` | `PatternsScreen`, `StateLookCard`, and `ColorPickerSliders` for per-state WLED presets, custom segments, effects, palettes, and transitions. |
-| `com.example.history` | `HistoryScreen` and `SessionExportHelper`: expandable session cards, Bosch V1.0 reliability report, session notes editor, and 4-section CSV export. |
-| `com.example.settings` & `com.example.tuning` | `SettingsScreen` (`WledNetworkSettingsCard`, `SpeedSourceSettingsCard`, `SensorCalibrationCard`, Dev Tuning entry) and `TuningScreen` (`TuningTelemetryCard`, `TuningManualOverrideCard`, `TuningReplayCard`, `TuningParameterSections`). |
-| `com.example.config` & `com.example.logging` | `ConfigManager` (DataStore JSON persistence for `AppConfig`) and `LoggingDatabase` (Room SQLite tables for sessions, intervals, 50 Hz IMU/GPS/Bosch samples, raw Bosch `eb21` packets, and ride markers). |
-| `com.example.wled` & `com.example.safety` | `WledController` (`/json/state`, `/presets.json`, `/json/eff`, `/json/pal`) and `LockController` (motion safety lock when moving). |
+| `com.example.patterns` | `PatternsScreen`, `StateLookCard`, `PresetLookSection`, `CustomLookSection`, and `ColorPickerSliders` for per-state WLED presets, custom segments, effects, palettes, and transitions. |
+| `com.example.history` | `HistoryScreen` and `SessionExportHelper`: expandable session cards with SQL summary metrics, Bosch V1.0 reliability report, session notes editor, and 4-section CSV export. |
+| `com.example.settings` & `com.example.tuning` | `SettingsScreen` (`WledNetworkSettingsCard`, `WledHardwareConfigCard`, `SpeedSourceSettingsCard`, `SensorCalibrationCard`, Dev Tuning entry) and `TuningScreen` (`TuningTelemetryCard`, `TuningManualOverrideCard`, `TuningReplayCard`, `TuningParameterSections`). |
+| `com.example.config` & `com.example.logging` | `ConfigManager` (DataStore JSON persistence for `AppConfig`), `DomainEnums` (typed wire enums), and `LoggingDatabase` (Room SQLite tables for sessions, intervals, 50 Hz IMU/GPS/Bosch samples, raw Bosch `eb21` packets, and ride markers). |
+| `com.example.wled` & `com.example.safety` | `WledController` (`/json/state`, `/json/cfg`, `/presets.json`, `/json/eff`, `/json/pal`) and `LockController` (motion safety lock when moving). |
 
 ---
 
