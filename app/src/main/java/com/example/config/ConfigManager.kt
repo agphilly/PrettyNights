@@ -15,6 +15,23 @@ import kotlinx.coroutines.flow.map
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "prettynights_config")
 
+data class WledHardwareConfig(
+    val maxCurrentMa: Int = 2500, // 2500mA safe default for USB-C 5V 3A; up to 15000mA on main terminals
+    val ch1LedCount: Int = 60,
+    val ch1StripType: Int = 22, // 22 = WS281x RGB, 30 = SK6812 RGBW
+    val ch1ColorOrder: Int = 0, // 0 = GRB, 1 = RGB, 2 = BRG
+    val ch1Reversed: Boolean = false,
+    val ch1ZoneName: String = "Main Frame (IO16)",
+    val ch2Enabled: Boolean = true,
+    val ch2LedCount: Int = 30,
+    val ch2StripType: Int = 22,
+    val ch2ColorOrder: Int = 0,
+    val ch2Reversed: Boolean = false,
+    val ch2ZoneName: String = "Rear Tail (IO2)",
+    val io13Role: String = "PUSHBUTTON", // "PUSHBUTTON", "REED_SWITCH", "STRIP_CH3", "DISABLED"
+    val ch3LedCount: Int = 20
+)
+
 data class WledLook(
     val presetId: Int? = null,
     val effectId: Int = 0, // Solid = 0, Rainbow = 9, Chase = 11, Pulse = 12, Flow = 20...
@@ -22,7 +39,8 @@ data class WledLook(
     val colors: List<String> = listOf("#FF7800"), // RGB colors
     val speed: Int? = null, // WLED ranges from 0-255, default none
     val intensity: Int? = null, // 0-255, default none
-    val transitionMs: Int = 300 // transition is configured in milliseconds
+    val transitionMs: Int = 300, // transition is configured in milliseconds
+    val targetSegments: String = "BOTH" // "BOTH", "SEG_0_IO16", "SEG_1_IO2"
 )
 
 data class AppConfig(
@@ -35,6 +53,7 @@ data class AppConfig(
     val sensorAxis: String = "Y", // "X", "Y", "Z"
     val sensorSign: Int = -1, // 1 or -1
     val stateMachine: StateMachineConfig = StateMachineConfig(),
+    val hardwareConfig: WledHardwareConfig = WledHardwareConfig(),
     
     // Default Looks
     val idleLook: WledLook = WledLook(

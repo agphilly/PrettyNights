@@ -103,8 +103,8 @@ class MainActivity : ComponentActivity() {
                                 NavigationBarItem(
                                     selected = currentTab == 3,
                                     onClick = { currentTab = 3 },
-                                    icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                                    label = { Text("Calibrate") },
+                                    icon = { Icon(Icons.Default.Settings, contentDescription = "Config") },
+                                    label = { Text("Config") },
                                     modifier = Modifier.testTag("nav_btn_calibrate")
                                 )
                             }

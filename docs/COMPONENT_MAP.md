@@ -17,9 +17,10 @@ app/src/main/java/com/example/
 │   ├── PatternsScreen.kt         # Per-state look tabs (IDLE, CRUISING, BRAKING) & controller sync
 │   ├── StateLookCard.kt          # Preset vs Custom segment editor, effect/palette dropdowns, speed/intensity
 │   └── ColorPickerSliders.kt     # Interactive 3-slot RGB color swatches and channel sliders
-├── settings/                     # User preferences & hardware calibration
-│   ├── SettingsScreen.kt         # Settings container and entry point to Developer Tuning (TuningScreen)
+├── settings/                     # User preferences & hardware calibration (Config Tab)
+│   ├── SettingsScreen.kt         # System & Hardware Config container and entry point to Developer Tuning
 │   ├── WledNetworkSettingsCard.kt# WLED hostname sanitizer, UDP Audio Sync port, connection test
+│   ├── WledHardwareConfigCard.kt # NaveiTech NV-LC616WL GPIO 16/2/13, current limiter & segment provisioning
 │   ├── SpeedSourceSettingsCard.kt# Speed source selector (GPS_ONLY, BOSCH_PREFERRED, BOSCH_ONLY) & BLE status
 │   └── SensorCalibrationCard.kt  # 3-axis (X/Y/Z) & polarity (+1/-1) mount calibration + 1-tap auto-detect
 ├── tuning/                       # State machine live diagnostics, replay simulator & parameter tuning

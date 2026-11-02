@@ -80,7 +80,7 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Application Settings",
+                    text = "System & Hardware Config",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -142,14 +142,21 @@ fun SettingsScreen(
                 onConfigSave = onConfigSave
             )
 
-            // 2. Speed Source Preference
+            // 2. NaveiTech NV-LC616WL Hardware, I/O & Multi-Segment Configuration
+            WledHardwareConfigCard(
+                config = config,
+                isLocked = isLocked,
+                onConfigSave = onConfigSave
+            )
+
+            // 3. Speed Source Preference
             SpeedSourceSettingsCard(
                 config = config,
                 isLocked = isLocked,
                 onConfigSave = onConfigSave
             )
 
-            // 3. Sensor Orientation & Polarity
+            // 4. Sensor Orientation & Polarity
             SensorCalibrationCard(
                 config = config,
                 isLocked = isLocked,

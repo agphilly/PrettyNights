@@ -37,7 +37,35 @@ All notable changes, architectural milestones, and component updates for the **P
 ---
 
 ## [Unreleased]
-*No unreleased changes currently staged. Changes made after Build 8 (`v1.7.0`) will appear here until the next GitHub push.*
+*No unreleased changes currently staged. Changes made after Build 9 (`v1.8.0`) will appear here until the next GitHub push.*
+
+---
+
+## [Build 9 — v1.8.0] - 2026-11-01
+**Suggested Git Commit:** `feat(hardware): rename Calibrate tab to Config, add NV-LC616WL GPIO/power/segment provisioning and per-state segment routing`
+
+### Added
+- **NaveiTech NV-LC616WL Hardware Specification (`/docs/HARDWARE_SPEC.md`)**:
+  - Documented electrical ratings (`DC 5–12–24V` 15A max, `5V 3A` power-only USB-C, 20A Mini 297 blade fuse, `IP20` enclosure), terminal GPIO pinout (`IO16` Ch1, `IO2` Ch2, `IO13` Aux), RJ45 Ethernet + Wi-Fi dual-mode bicycle wiring diagrams, and recommended WLED firmware settings.
+- **NV-LC616WL Hardware, I/O & Multi-Segment Provisioning Card (`WledHardwareConfigCard.kt` & `WledController.kt`)**:
+  - Added direct `/json/cfg` and `/json/state` provisioning in the **Config** tab:
+    - **Power Supply Current Limiter**: One-tap presets for **USB-C 5V (`2,500 mA`)**, **Battery Pack (`8,000 mA`)**, and **Max Terminal (`15,000 mA`)** plus a fine slider (`500..15,000 mA`).
+    - **Dual-Channel LED Bus Config (`IO16` / `GPIO 16` & `IO2` / `GPIO 2`)**: Per-channel LED counts, strip protocols (`WS2812B RGB` vs. `SK6812 RGBW`), color orders (`GRB` / `RGB`), reverse-direction toggles, and zone labels.
+    - **Auxiliary `IO13` (`GPIO 13`) Role Selector**: Configurable as `Pushbutton`, `Reed Switch`, `3rd LED Strip`, or `Disabled`.
+    - **Live Controller Info & One-Tap Segment Partitioning**: Added **Read Info** (`GET /json/info`) and **Push Hardware & Segments to WLED** (`POST /json/cfg` + `POST /json/state`) with a live computed address map (`Seg 0: 0..N`, `Seg 1: N..N+M`).
+- **Per-State Segment Routing in `Patterns` (`StateLookCard.kt` & `WledLook.targetSegments`)**:
+  - Added a **Target NV-LC616WL Output Zone** selector (`Both (IO16 + IO2)`, `Seg 0 (IO16)`, `Seg 1 (IO2)`) to each ride state look (`IDLE`, `CRUISING`, `BRAKING`).
+
+### Changed / Refactored
+- Renamed the 4th bottom navigation tab in `MainActivity.kt` from `Calibrate` to **`Config`** and updated `SettingsScreen.kt` header to **System & Hardware Config**.
+- Incremented `/app/build.gradle.kts` to `versionCode = 9` and `versionName = "1.8.0"`.
+
+### Key Files Touched
+- `/docs/HARDWARE_SPEC.md`, `/docs/COMPONENT_MAP.md`, `/docs/CHANGELOG.md`, `/README.md`
+- `/app/src/main/java/com/example/settings/WledHardwareConfigCard.kt`, `/app/src/main/java/com/example/settings/SettingsScreen.kt`
+- `/app/src/main/java/com/example/wled/WledController.kt`
+- `/app/src/main/java/com/example/patterns/StateLookCard.kt`
+- `/app/src/main/java/com/example/config/ConfigManager.kt`, `/app/src/main/java/com/example/MainActivity.kt`, `/app/build.gradle.kts`
 
 ---
 

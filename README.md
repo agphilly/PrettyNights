@@ -39,6 +39,7 @@ For complete functional requirements, state-machine matrices, packet layouts, UI
 | [**`docs/ARCHITECTURE.md`**](./docs/ARCHITECTURE.md) | System architecture diagram, 50 Hz sensor-to-WLED pipeline, foreground services, and persistence design. |
 | [**`docs/COMPONENT_MAP.md`**](./docs/COMPONENT_MAP.md) | Complete directory tree and file-by-file responsibilities across all 36 Kotlin source files and the Web Workbench. |
 | [**`docs/PROTOCOLS.md`**](./docs/PROTOCOLS.md) | WLED HTTP JSON API, UDP Port 11988 V2 binary layout, Bosch Live Data Interface V1.0 (`eb20`/`eb21`) protobuf spec, and IMU projection math. |
+| [**`docs/HARDWARE_SPEC.md`**](./docs/HARDWARE_SPEC.md) | NaveiTech `NV-LC616WL` ESP32-WLED controller electrical ratings, GPIO pinout (`IO16`/`IO2`/`IO13`), RJ45 Ethernet + Wi-Fi wiring diagrams, and WLED settings. |
 | [**`docs/TUNING_AND_TELEMETRY.md`**](./docs/TUNING_AND_TELEMETRY.md) | 12-step field-tuning methodology, `StateMachineConfig` parameter reference table, Replay Simulator, and Web Workbench workflow. |
 | [**`docs/TUNING_TEST_PLAN.md`**](./docs/TUNING_TEST_PLAN.md) | 4-phase real-world data collection, Bosch V1.0 reliability audit, iterative replay tuning, and Web Workbench CSV analysis plan. |
 | [**`docs/CHANGELOG.md`**](./docs/CHANGELOG.md) | Build-by-build release history, semantic versions, and suggested Git commit messages. |

@@ -316,6 +316,49 @@ fun StateLookCard(
                     // --- CUSTOM ACTION MODE LAYOUT ---
                     if (!isPresetMode) {
                         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            // Section: TARGET NV-LC616WL OUTPUT SEGMENT (IO16 vs IO2)
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    "Target NV-LC616WL Output Zone (Segment)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    listOf(
+                                        "BOTH" to "Both (IO16 + IO2)",
+                                        "SEG_0_IO16" to "Seg 0 (IO16)",
+                                        "SEG_1_IO2" to "Seg 1 (IO2)"
+                                    ).forEach { (segKey, label) ->
+                                        val isSegSelected = look.targetSegments == segKey
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(
+                                                    if (isSegSelected) MaterialTheme.colorScheme.secondaryContainer
+                                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                                                )
+                                                .clickable(enabled = !isLocked) {
+                                                    onLookChanged(look.copy(targetSegments = segKey))
+                                                }
+                                                .padding(vertical = 8.dp)
+                                                .testTag("seg_target_${state.name}_$segKey"),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isSegSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
                             // Section: EFFECTS SELECTION DROPDOWN
                             var showEffectDropdown by remember { mutableStateOf(false) }
                             val currentEffectId = look.effectId
