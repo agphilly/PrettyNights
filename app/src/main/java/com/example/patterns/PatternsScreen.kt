@@ -153,7 +153,7 @@ fun PatternsContent(
                 }
             }
 
-            // --- RETRY TRIGGER FOR METADATA ---
+            // --- OFFLINE CONTROLLER / RETRY TRIGGER FOR METADATA ---
             if (fetchFailed) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -166,12 +166,12 @@ fun PatternsContent(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Couldn't load presets — check the WLED connection.",
+                            text = "WLED controller (${localConfig.wledHost}) is offline — built-in WLED effects & palettes are active for Custom Looks. Connect to WLED to load saved presets.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium
                         )
-                        Button(
+                        OutlinedButton(
                             onClick = onRetryFetch,
                             modifier = Modifier.testTag("btn_retry_fetch_presets")
                         ) {

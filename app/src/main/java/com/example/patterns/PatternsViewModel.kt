@@ -35,10 +35,10 @@ class PatternsViewModel(
     private val _presets = MutableStateFlow<List<WledPreset>?>(null)
     val presets: StateFlow<List<WledPreset>?> = _presets.asStateFlow()
 
-    private val _effects = MutableStateFlow<List<String>?>(null)
+    private val _effects = MutableStateFlow<List<String>?>(WledController.DEFAULT_WLED_EFFECTS)
     val effects: StateFlow<List<String>?> = _effects.asStateFlow()
 
-    private val _palettes = MutableStateFlow<List<String>?>(null)
+    private val _palettes = MutableStateFlow<List<String>?>(WledController.DEFAULT_WLED_PALETTES)
     val palettes: StateFlow<List<String>?> = _palettes.asStateFlow()
 
     private val _isFetching = MutableStateFlow(false)
@@ -64,10 +64,16 @@ class PatternsViewModel(
             _isFetching.value = false
             if (fetchedPresets == null) {
                 _fetchFailed.value = true
+                if (_effects.value.isNullOrEmpty()) {
+                    _effects.value = WledController.DEFAULT_WLED_EFFECTS
+                }
+                if (_palettes.value.isNullOrEmpty()) {
+                    _palettes.value = WledController.DEFAULT_WLED_PALETTES
+                }
             } else {
                 _presets.value = fetchedPresets
-                _effects.value = fetchedEffects
-                _palettes.value = fetchedPalettes
+                _effects.value = fetchedEffects ?: WledController.DEFAULT_WLED_EFFECTS
+                _palettes.value = fetchedPalettes ?: WledController.DEFAULT_WLED_PALETTES
                 _fetchFailed.value = false
             }
         }
