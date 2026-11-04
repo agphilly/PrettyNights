@@ -68,8 +68,8 @@ You can synchronize this project with GitHub directly from **Google AI Studio** 
 ### Workflow B: Local Git & Android Studio Development
 1. Export the project as a ZIP from the AI Studio **Settings / Export** menu (or clone your synced GitHub repository):
    ```bash
-   git clone https://github.com/<your-username>/<your-repo>.git
-   cd <your-repo>
+   git clone https://github.com/agphilly/PrettyNights.git
+   cd PrettyNights
    ```
 2. **Restore the Debug Signing Keystore**:
    Because `debug.keystore` is excluded from Git in `.gitignore` while `debug.keystore.base64` is tracked for deterministic APK signing compatibility, decode it once after cloning:
