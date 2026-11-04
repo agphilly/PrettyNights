@@ -176,10 +176,17 @@ open class RideOrchestrator(
         // Single lifecycle consumer loop: processes Start and Stop strictly in order
         coroutineScope.launch {
             for (cmd in lifecycleCmds) {
-                when (cmd) {
-                    LifecycleCmd.Start -> if (activeSessionId == null) doStart()
-                    LifecycleCmd.Stop -> if (activeSessionId != null) doStop()
-                    is LifecycleCmd.Barrier -> cmd.done.complete(Unit)
+                try {
+                    when (cmd) {
+                        LifecycleCmd.Start -> if (activeSessionId == null) doStart()
+                        LifecycleCmd.Stop -> if (activeSessionId != null) doStop()
+                        is LifecycleCmd.Barrier -> cmd.done.complete(Unit)
+                    }
+                } catch (e: Exception) {
+                    Log.e("RideOrchestrator", "Lifecycle command ${cmd::class.simpleName} failed: ${e.message}")
+                    activeSessionId = null
+                    _isRunning.value = false
+                    if (cmd is LifecycleCmd.Barrier) cmd.done.complete(Unit)
                 }
             }
         }

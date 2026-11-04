@@ -282,7 +282,7 @@ class RideStateMachine(private val configProvider: () -> StateMachineConfig) {
 
         // 6. Global Brightness Envelope Mapping (Section 5)
         val floor = cfg.globalMinBrightness
-        val ceiling = if (currentState == RideState.BRAKING && cfg.brakingIgnoresGlobalMax) {
+        val ceiling = if ((currentState == RideState.BRAKING || currentState == RideState.BRAKING_HOLD) && cfg.brakingIgnoresGlobalMax) {
             1.0f
         } else {
             cfg.globalMaxBrightness

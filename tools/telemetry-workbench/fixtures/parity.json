@@ -430,1050 +430,1050 @@
           "longitudinalAccel": -3.2,
           "speedKmh": 1.6923,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1160,
           "longitudinalAccel": -3.2,
           "speedKmh": 1.1282,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1180,
           "longitudinalAccel": -3.2,
           "speedKmh": 1.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1200,
           "longitudinalAccel": -3.2,
           "speedKmh": 1.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1220,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1240,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1260,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1280,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1300,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1320,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1340,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1360,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1380,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1400,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1420,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1440,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1460,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1480,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1500,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1520,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1540,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1560,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1580,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1600,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1620,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1640,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1660,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1680,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1700,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1720,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1740,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1760,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1780,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1800,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1820,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1840,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1860,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1880,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1900,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1920,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1940,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1960,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 1980,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2000,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2020,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2040,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2060,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2080,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2100,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2120,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2140,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2160,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2180,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2200,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2220,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2240,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2260,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2280,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2300,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2320,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2340,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2360,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2380,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2400,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2420,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2440,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2460,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2480,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2500,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2520,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2540,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2560,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2580,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2600,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2620,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2640,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2660,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2680,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2700,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2720,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2740,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2760,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2780,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2800,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2820,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2840,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2860,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2880,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2900,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2920,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2940,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2960,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 2980,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 3000,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 3020,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 3040,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 3060,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 3080,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 3100,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 3120,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 3140,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7509
+          "expectedBrightness": 0.9345
         },
         {
           "timestampMs": 3160,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7417
+          "expectedBrightness": 0.9222
         },
         {
           "timestampMs": 3180,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7325
+          "expectedBrightness": 0.9099
         },
         {
           "timestampMs": 3200,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7232
+          "expectedBrightness": 0.8976
         },
         {
           "timestampMs": 3220,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.714
+          "expectedBrightness": 0.8854
         },
         {
           "timestampMs": 3240,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.7048
+          "expectedBrightness": 0.8731
         },
         {
           "timestampMs": 3260,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.6956
+          "expectedBrightness": 0.8608
         },
         {
           "timestampMs": 3280,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.6864
+          "expectedBrightness": 0.8485
         },
         {
           "timestampMs": 3300,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.6771
+          "expectedBrightness": 0.8362
         },
         {
           "timestampMs": 3320,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.6679
+          "expectedBrightness": 0.8239
         },
         {
           "timestampMs": 3340,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.6587
+          "expectedBrightness": 0.8116
         },
         {
           "timestampMs": 3360,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.6495
+          "expectedBrightness": 0.7993
         },
         {
           "timestampMs": 3380,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.6403
+          "expectedBrightness": 0.787
         },
         {
           "timestampMs": 3400,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.6311
+          "expectedBrightness": 0.7747
         },
         {
           "timestampMs": 3420,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.6218
+          "expectedBrightness": 0.7625
         },
         {
           "timestampMs": 3440,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.6126
+          "expectedBrightness": 0.7502
         },
         {
           "timestampMs": 3460,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.6034
+          "expectedBrightness": 0.7379
         },
         {
           "timestampMs": 3480,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.5942
+          "expectedBrightness": 0.7256
         },
         {
           "timestampMs": 3500,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.585
+          "expectedBrightness": 0.7133
         },
         {
           "timestampMs": 3520,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.5757
+          "expectedBrightness": 0.701
         },
         {
           "timestampMs": 3540,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.5665
+          "expectedBrightness": 0.6887
         },
         {
           "timestampMs": 3560,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.5573
+          "expectedBrightness": 0.6764
         },
         {
           "timestampMs": 3580,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.5481
+          "expectedBrightness": 0.6641
         },
         {
           "timestampMs": 3600,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.5389
+          "expectedBrightness": 0.6518
         },
         {
           "timestampMs": 3620,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.5297
+          "expectedBrightness": 0.6395
         },
         {
           "timestampMs": 3640,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.5204
+          "expectedBrightness": 0.6273
         },
         {
           "timestampMs": 3660,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.5112
+          "expectedBrightness": 0.615
         },
         {
           "timestampMs": 3680,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.502
+          "expectedBrightness": 0.6027
         },
         {
           "timestampMs": 3700,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.4928
+          "expectedBrightness": 0.5904
         },
         {
           "timestampMs": 3720,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.4836
+          "expectedBrightness": 0.5781
         },
         {
           "timestampMs": 3740,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.4744
+          "expectedBrightness": 0.5658
         },
         {
           "timestampMs": 3760,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.4651
+          "expectedBrightness": 0.5535
         },
         {
           "timestampMs": 3780,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.4559
+          "expectedBrightness": 0.5412
         },
         {
           "timestampMs": 3800,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.4467
+          "expectedBrightness": 0.5289
         },
         {
           "timestampMs": 3820,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.4375
+          "expectedBrightness": 0.5166
         },
         {
           "timestampMs": 3840,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.4283
+          "expectedBrightness": 0.5044
         },
         {
           "timestampMs": 3860,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.419
+          "expectedBrightness": 0.4921
         },
         {
           "timestampMs": 3880,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.4098
+          "expectedBrightness": 0.4798
         },
         {
           "timestampMs": 3900,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.4006
+          "expectedBrightness": 0.4675
         },
         {
           "timestampMs": 3920,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.3914
+          "expectedBrightness": 0.4552
         },
         {
           "timestampMs": 3940,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.3822
+          "expectedBrightness": 0.4429
         },
         {
           "timestampMs": 3960,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.373
+          "expectedBrightness": 0.4306
         },
         {
           "timestampMs": 3980,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.3637
+          "expectedBrightness": 0.4183
         },
         {
           "timestampMs": 4000,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.3545
+          "expectedBrightness": 0.406
         },
         {
           "timestampMs": 4020,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.3453
+          "expectedBrightness": 0.3937
         },
         {
           "timestampMs": 4040,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.3361
+          "expectedBrightness": 0.3815
         },
         {
           "timestampMs": 4060,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.3269
+          "expectedBrightness": 0.3692
         },
         {
           "timestampMs": 4080,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.3177
+          "expectedBrightness": 0.3569
         },
         {
           "timestampMs": 4100,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.3084
+          "expectedBrightness": 0.3446
         },
         {
           "timestampMs": 4120,
           "longitudinalAccel": 0.0,
           "speedKmh": 0.0,
           "expectedState": "BRAKING_HOLD",
-          "expectedBrightness": 0.2992
+          "expectedBrightness": 0.3323
         },
         {
           "timestampMs": 4140,
