@@ -37,7 +37,40 @@ All notable changes, architectural milestones, and component updates for the **P
 ---
 
 ## [Unreleased]
-*No unreleased changes currently staged. Changes made after Build 11 (`v2.0.0`) will appear here until the next GitHub push.*
+*No unreleased changes currently staged. Changes made after Build 12 (`v2.1.0`) will appear here until the next GitHub push.*
+
+---
+
+## [Build 12 — v2.1.0] - 2026-11-03
+**Suggested Git Commit:** `feat(segments): implement WLED Segment Role Architecture (Ambient & Brake roles), single-POST sendComposedState with per-segment transitions, and multi-channel segment UI`
+
+### Added
+- **Segment Role Architecture Data Model (`DomainEnums.kt` & `ConfigManager.kt`)**:
+  - Added `SegmentRoleType` (`AMBIENT`, `NOTIFICATION`), `SegmentRole` (`MAIN_FRAME` → `"Ambient"`, `BRAKE_LIGHTS` → `"Brake"`), `SegmentConfig` (including `activeInMusicMode: Boolean = false` for Phase 2 persistence), `ChannelConfig`, and `withSequentialSegmentIds()`.
+  - Replaced flat `WledHardwareConfig` on `AppConfig` with `@Json(name = "channels") val channels: List<ChannelConfig> = emptyList()`, preserving seamless Moshi DataStore migration and all four ride state looks (`idleLook`, `cruisingLook`, `brakingLook`, `brakingHoldLook`).
+- **Role-Based Segment Fan-Out (`RideOrchestrator.lookForSegment`)**:
+  - Added `lookForSegment(role, state)` so `MAIN_FRAME` (`AMBIENT`) segments hold `cruisingLook` during `BRAKING` and `BRAKING_HOLD` while `BRAKE_LIGHTS` (`NOTIFICATION`) segments inherit ambient looks in `IDLE`/`CRUISING` and trigger `brakingLook` and `brakingHoldLook`.
+- **Composed WLED State Dispatch (`WledController.sendComposedState`)**:
+  - Added `sendComposedState(host, segmentLooks, brightness)` to dispatch all segment overrides in a single `/json/state` HTTP POST per tick with per-segment `tt` transition times (and no top-level `tt`/`transition` field).
+- **Multi-Channel & Segment Role Settings UI (`WledHardwareConfigCard.kt`)**:
+  - Rebuilt `WledHardwareConfigCard` around `List<ChannelConfig>` with `"GPIO <pin> — <ledCount> LEDs"` headers, strip coverage indicators (`"<covered> / <ledCount> LEDs configured"`), `ExposedDropdownMenuBox` role selection driven by `SegmentRole.entries.map { it.displayLabel }`, non-overlapping `[startLed, endLed)` validation, and a 10-segment per channel cap.
+- **Offline WLED Effect & Palette Fallback (`WledController.kt`, `PatternsViewModel.kt`, `PatternsScreen.kt`)**:
+  - Added built-in `DEFAULT_WLED_EFFECTS` and `DEFAULT_WLED_PALETTES` so Custom Looks remain selectable even when the WLED controller is offline, and added a 4th `StateLookCard` for `BRAKING_HOLD`.
+
+### Fixed
+- **50 Hz Hot-Path & Throttle Caching (`RideOrchestrator.kt`)**:
+  - `evalAndSendWledSink()` reads pre-assigned `seg.wledSegmentId` values directly without hot-path allocations, caches `lastSentSegmentLooks: Map<Int, WledLook>`, and logs a single representative look (`MAIN_FRAME`/`AMBIENT` when present, or first segment entry) to `WledIntervalEntity`.
+- **Hardware Provisioning Return Status (`WledController.pushHardwareAndSegments`)**:
+  - Fixed `pushHardwareAndSegments()` to return `cfgOk && segOk` instead of `cfgOk || segOk` so `/json/cfg` failures are never masked.
+
+### Key Files Touched
+- `/app/src/main/java/com/example/config/DomainEnums.kt`, `/app/src/main/java/com/example/config/ConfigManager.kt`
+- `/app/src/main/java/com/example/wled/WledController.kt`
+- `/app/src/main/java/com/example/ride/RideOrchestrator.kt`
+- `/app/src/main/java/com/example/settings/WledHardwareConfigCard.kt`, `/app/src/main/java/com/example/settings/SettingsViewModel.kt`, `/app/src/main/java/com/example/settings/SettingsScreen.kt`
+- `/app/src/main/java/com/example/patterns/CustomLookSection.kt`, `/app/src/main/java/com/example/patterns/PatternsScreen.kt`, `/app/src/main/java/com/example/patterns/PatternsViewModel.kt`
+- `/app/src/main/java/com/example/tuning/TuningViewModel.kt`
+- `/app/src/test/java/com/example/ExampleUnitTest.kt`, `/app/src/test/java/com/example/ExampleRobolectricTest.kt`, `/app/src/test/java/com/example/RideOrchestratorTest.kt`
 
 ---
 

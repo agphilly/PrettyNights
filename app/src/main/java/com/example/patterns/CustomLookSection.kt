@@ -1,7 +1,5 @@
 package com.example.patterns
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -11,13 +9,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.config.SegmentTarget
 import com.example.config.WledLook
 import com.example.statemachine.RideState
 
@@ -31,47 +26,6 @@ fun CustomLookSection(
     onLookChanged: (WledLook) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        // Section: TARGET NV-LC616WL OUTPUT SEGMENT (IO16 vs IO2)
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                "Target NV-LC616WL Output Zone (Segment)",
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.SemiBold
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                val activeTarget = look.targetSegments
-                SegmentTarget.entries.forEach { target ->
-                    val segKey = target.wireValue
-                    val isSegSelected = activeTarget == target
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                if (isSegSelected) MaterialTheme.colorScheme.secondaryContainer
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                            )
-                            .clickable(enabled = !isLocked) {
-                                onLookChanged(look.copy(targetSegments = target))
-                            }
-                            .padding(vertical = 8.dp)
-                            .testTag("seg_target_${state.name}_$segKey"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = target.displayLabel,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isSegSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-
         // Section: EFFECTS SELECTION DROPDOWN
         var showEffectDropdown by remember { mutableStateOf(false) }
         val currentEffectId = look.effectId
@@ -395,7 +349,7 @@ fun CustomLookSection(
         val currentTransitionMs = look.transitionMs
         Column {
             Text(
-                text = if (state == RideState.BRAKING)
+                text = if (state == RideState.BRAKING || state == RideState.BRAKING_HOLD)
                     "Crossfade Transition Override (Braking default is 0)"
                 else "Look Crossfade Transition",
                 style = MaterialTheme.typography.bodySmall,
@@ -414,7 +368,7 @@ fun CustomLookSection(
                     enabled = !isLocked,
                     valueRange = 0f..3000f,
                     modifier = Modifier.weight(1f).testTag("transition_slider_${state.name}"),
-                    colors = if (state == RideState.BRAKING)
+                    colors = if (state == RideState.BRAKING || state == RideState.BRAKING_HOLD)
                         SliderDefaults.colors(
                             thumbColor = MaterialTheme.colorScheme.error,
                             activeTrackColor = MaterialTheme.colorScheme.error

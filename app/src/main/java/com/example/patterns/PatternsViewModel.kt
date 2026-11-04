@@ -88,8 +88,19 @@ class PatternsViewModel(
     fun previewLook(state: RideState, host: String, look: WledLook) {
         _previewStatusByState.update { it + (state to "Sending preview...") }
         viewModelScope.launch {
+            val currentChannels = config.value.channels
+            val configuredSegs = currentChannels.flatMap { it.segments }
+            val segmentLooks: Map<Int, WledLook> = if (configuredSegs.isNotEmpty()) {
+                configuredSegs.associate { it.wledSegmentId to look }
+            } else {
+                mapOf(0 to look)
+            }
             val ok = withContext(ioDispatcher) {
-                wledController.sendState(host = host, look = look, brightness = 1.0f)
+                wledController.sendComposedState(
+                    host = host,
+                    segmentLooks = segmentLooks,
+                    brightness = 1.0f
+                )
             }
             val resultText = if (ok) "Sent successfully!" else "WLED unreachable!"
             _previewStatusByState.update { it + (state to resultText) }

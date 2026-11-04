@@ -183,7 +183,7 @@ fun PatternsContent(
                 }
             }
 
-            // --- 3 CONFIGURABLE STATE SLOTS (IDLE, CRUISING, BRAKING) ---
+            // --- 4 CONFIGURABLE STATE SLOTS (IDLE, CRUISING, BRAKING, BRAKING_HOLD) ---
             StateLookCard(
                 stateLabel = "IDLE (Stationary)",
                 state = RideState.IDLE,
@@ -231,7 +231,7 @@ fun PatternsContent(
             )
 
             StateLookCard(
-                stateLabel = "BRAKING (Decelerating)",
+                stateLabel = "BRAKING (Decelerating — Brake Segments)",
                 state = RideState.BRAKING,
                 look = localConfig.brakingLook,
                 presets = presets,
@@ -251,6 +251,29 @@ fun PatternsContent(
                 previewStatus = previewStatusByState[RideState.BRAKING],
                 onPreviewLook = { onPreviewLook(RideState.BRAKING, localConfig.wledHost, localConfig.brakingLook) },
                 onClearPreviewStatus = { onClearPreviewStatus(RideState.BRAKING) }
+            )
+
+            StateLookCard(
+                stateLabel = "BRAKING HOLD (Stopped After Braking — Brake Segments)",
+                state = RideState.BRAKING_HOLD,
+                look = localConfig.brakingHoldLook,
+                presets = presets,
+                effects = effects,
+                palettes = palettes,
+                isFetchingPresets = isFetching,
+                fetchFailed = fetchFailed,
+                onRetryFetch = onRetryFetch,
+                expanded = activeEditingState == RideState.BRAKING_HOLD,
+                onHeaderClick = {
+                    activeEditingState = if (activeEditingState == RideState.BRAKING_HOLD) null else RideState.BRAKING_HOLD
+                },
+                onLookChanged = { newLook ->
+                    localConfig = localConfig.copy(brakingHoldLook = newLook)
+                },
+                isLocked = isLocked,
+                previewStatus = previewStatusByState[RideState.BRAKING_HOLD],
+                onPreviewLook = { onPreviewLook(RideState.BRAKING_HOLD, localConfig.wledHost, localConfig.brakingHoldLook) },
+                onClearPreviewStatus = { onClearPreviewStatus(RideState.BRAKING_HOLD) }
             )
 
             // Save Settings status and action

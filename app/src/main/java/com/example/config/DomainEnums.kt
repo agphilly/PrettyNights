@@ -6,8 +6,8 @@ import com.squareup.moshi.ToJson
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
 /**
- * Type-safe domain enums for PrettyNights configuration, hardware provisioning,
- * and ride telemetry, with backwards-compatible wire string conversion.
+ * Type-safe domain enums and segment/channel models for PrettyNights configuration,
+ * hardware provisioning, and ride telemetry, with backwards-compatible wire string conversion.
  */
 
 enum class SpeedSourceMode(val wireValue: String, val displayLabel: String) {
@@ -78,20 +78,60 @@ enum class Io13PinRole(val wireValue: String, val displayLabel: String, val wled
     }
 }
 
-enum class SegmentTarget(
-    val wireValue: String,
-    val displayLabel: String,
-    val targetSegmentIds: List<Int?>
-) {
-    BOTH("BOTH", "Both (IO16 + IO2)", listOf(null)),
-    SEG_0_IO16("SEG_0_IO16", "Seg 0 (IO16)", listOf(0)),
-    SEG_1_IO2("SEG_1_IO2", "Seg 1 (IO2)", listOf(1));
+enum class SegmentRoleType {
+    AMBIENT,
+    NOTIFICATION
+}
+
+enum class SegmentRole(val roleType: SegmentRoleType, val displayLabel: String) {
+    MAIN_FRAME(SegmentRoleType.AMBIENT, "Ambient"),
+    BRAKE_LIGHTS(SegmentRoleType.NOTIFICATION, "Brake");
+    // Future: TAIL_LIGHT, INDICATOR_LEFT, INDICATOR_RIGHT
+    // displayLabel drives the role dropdown in the UI — add new roles here only
 
     companion object {
-        fun fromWireValue(raw: String?): SegmentTarget {
-            return entries.firstOrNull { it.wireValue.equals(raw?.trim(), ignoreCase = true) }
-                ?: BOTH
+        fun fromWireValue(raw: String?): SegmentRole {
+            val trimmed = raw?.trim() ?: return MAIN_FRAME
+            return entries.firstOrNull {
+                it.name.equals(trimmed, ignoreCase = true) ||
+                    it.displayLabel.equals(trimmed, ignoreCase = true)
+            } ?: MAIN_FRAME
         }
+    }
+}
+
+data class SegmentConfig(
+    val wledSegmentId: Int,              // Segment ID sent in WLED /json/state
+    val startLed: Int,                   // LED offset from channel start
+    val endLed: Int,                     // Exclusive end
+    val label: String,                   // User-facing physical label e.g. "Rear Tail"
+    val role: SegmentRole,
+    val activeInMusicMode: Boolean = false  // Phase 2: persist and round-trip only; no logic yet
+)
+
+data class ChannelConfig(
+    val gpioPin: Int,
+    val ledCount: Int,
+    val stripType: Int,           // 22 = WS281x RGB, 30 = SK6812 RGBW
+    val colorOrder: Int,          // 0 = GRB, 1 = RGB, 2 = BRG
+    val reversed: Boolean = false,
+    val segments: List<SegmentConfig> = emptyList()
+    // Channel is identified by gpioPin; there is no user-editable channel name.
+)
+
+/**
+ * Assigns globally sequential wledSegmentId values (0, 1, 2 ... N-1) across all channels
+ * in declaration order. Used at save time and in buildSegmentLayoutJson().
+ */
+fun List<ChannelConfig>.withSequentialSegmentIds(): List<ChannelConfig> {
+    var nextId = 0
+    return map { channel ->
+        val updatedSegments = channel.segments.map { seg ->
+            val assigned = seg.copy(wledSegmentId = nextId)
+            nextId++
+            assigned
+        }
+        channel.copy(segments = updatedSegments)
     }
 }
 
@@ -115,10 +155,10 @@ object DomainEnumJson {
     fun io13FromJson(s: String): Io13PinRole = Io13PinRole.fromWireValue(s)
 
     @ToJson
-    fun segTargetToJson(v: SegmentTarget): String = v.wireValue
+    fun segmentRoleToJson(v: SegmentRole): String = v.name
 
     @FromJson
-    fun segTargetFromJson(s: String): SegmentTarget = SegmentTarget.fromWireValue(s)
+    fun segmentRoleFromJson(s: String): SegmentRole = SegmentRole.fromWireValue(s)
 
     @ToJson
     fun markerToJson(v: RideMarkerType?): String? = v?.wireValue

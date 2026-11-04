@@ -4,8 +4,7 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import com.example.config.AppJson
-import com.example.config.Io13PinRole
-import com.example.config.WledHardwareConfig
+import com.example.config.ChannelConfig
 import com.example.config.WledLook
 import kotlinx.coroutines.flow.StateFlow
 import okhttp3.MediaType.Companion.toMediaType
@@ -29,9 +28,52 @@ data class WledHardwareLiveInfo(
     val freeHeapBytes: Int
 )
 
+// Models representing the WLED /json/cfg hardware payload
+data class WledLedBusItem(
+    val start: Int,
+    val len: Int,
+    val pin: List<Int>,
+    val order: Int,
+    val rev: Boolean,
+    val skip: Int = 0,
+    val type: Int,
+    val ref: Boolean = false
+)
+
+data class WledLedConfig(
+    val total: Int,
+    val maxpwr: Int = 2500,
+    val ledma: Int = 55,
+    val ins: List<WledLedBusItem>
+)
+
+data class WledHwObject(
+    val led: WledLedConfig
+)
+
+data class WledHwConfigPayload(
+    val hw: WledHwObject
+)
+
+// Models representing the WLED /json/state segment layout provisioning payload
+data class WledSegmentLayoutItem(
+    val id: Int,
+    val start: Int,
+    val stop: Int,
+    val n: String,
+    val on: Boolean = true
+)
+
+data class WledSegmentLayoutPayload(
+    val on: Boolean = true,
+    val seg: List<WledSegmentLayoutItem>
+)
+
 // Models representing the WLED JSON State payload structure
 data class WledSegment(
     val id: Int? = null,
+    val on: Boolean = true,
+    val tt: Int = 0,
     val col: List<List<Int>>? = null,
     val fx: Int = 0,
     val fp: Int = 0,
@@ -43,13 +85,14 @@ data class WledStatePayload(
     val on: Boolean = true,
     val bri: Int,
     val ps: Int? = null,
-    val transition: Int? = null,
     val seg: List<WledSegment>? = null
 )
 
 open class WledController(context: Context? = null) {
 
     private val payloadAdapter = AppJson.moshi.adapter(WledStatePayload::class.java)
+    private val hwCfgAdapter = AppJson.moshi.adapter(WledHwConfigPayload::class.java)
+    private val segLayoutAdapter = AppJson.moshi.adapter(WledSegmentLayoutPayload::class.java)
 
     val networkTransport = WledNetworkTransport(context)
     open val transportState: StateFlow<WledTransportState> = networkTransport.transportState
@@ -132,12 +175,12 @@ open class WledController(context: Context? = null) {
     }
 
     /**
-     * Pushes the NaveiTech NV-LC616WL GPIO hardware setup (GPIO 16 Ch1, GPIO 2 Ch2, GPIO 13 Aux,
-     * and maxpwr current limiter) to /json/cfg and partitions the logical segments on /json/state.
+     * Pushes the configured GPIO channels to /json/cfg and partitions the logical segments
+     * with globally sequential segment IDs and channel-relative LED offsets on /json/state.
      */
-    open fun pushHardwareAndSegments(host: String, hw: WledHardwareConfig): Boolean {
-        val cfgPayload = buildHardwareCfgJson(hw)
-        val segPayload = buildSegmentLayoutJson(hw)
+    open fun pushHardwareAndSegments(host: String, channels: List<ChannelConfig>): Boolean {
+        val cfgPayload = buildHardwareCfgJson(channels)
+        val segPayload = buildSegmentLayoutJson(channels)
 
         val client = networkTransport.getHttpClient()
         return try {
@@ -153,146 +196,76 @@ open class WledController(context: Context? = null) {
                 .build()
             val segOk = client.newCall(segReq).execute().use { it.isSuccessful }
 
-            cfgOk || segOk
+            cfgOk && segOk
         } catch (e: Exception) {
-            Log.d("WledController", "Failed to push NV-LC616WL hardware config ($host): ${e.message}")
+            Log.d("WledController", "Failed to push hardware config ($host): ${e.message}")
             false
         }
     }
 
-    internal fun buildHardwareCfgJson(hw: WledHardwareConfig): String {
-        val ch1Len = hw.ch1LedCount.coerceIn(1, 1000)
-        val ch2Len = hw.ch2LedCount.coerceIn(1, 1000)
-        val ch3Len = hw.ch3LedCount.coerceIn(1, 1000)
+    internal fun buildHardwareCfgJson(channels: List<ChannelConfig>): String {
+        val busItems = mutableListOf<WledLedBusItem>()
+        var nextStart = 0
 
-        val insArray = JSONArray()
-        // Bus 0: Channel 1 (IO16 / GPIO 16)
-        insArray.put(
-            JSONObject().apply {
-                put("start", 0)
-                put("len", ch1Len)
-                put("pin", JSONArray().put(16))
-                put("order", hw.ch1ColorOrder)
-                put("rev", hw.ch1Reversed)
-                put("skip", 0)
-                put("type", hw.ch1StripType)
-                put("ref", false)
-            }
-        )
-
-        var nextStart = ch1Len
-        // Bus 1: Channel 2 (IO2 / GPIO 2)
-        if (hw.ch2Enabled) {
-            insArray.put(
-                JSONObject().apply {
-                    put("start", nextStart)
-                    put("len", ch2Len)
-                    put("pin", JSONArray().put(2))
-                    put("order", hw.ch2ColorOrder)
-                    put("rev", hw.ch2Reversed)
-                    put("skip", 0)
-                    put("type", hw.ch2StripType)
-                    put("ref", false)
-                }
+        for (channel in channels) {
+            val len = channel.ledCount.coerceIn(1, 1000)
+            busItems.add(
+                WledLedBusItem(
+                    start = nextStart,
+                    len = len,
+                    pin = listOf(channel.gpioPin),
+                    order = channel.colorOrder,
+                    rev = channel.reversed,
+                    skip = 0,
+                    type = channel.stripType,
+                    ref = false
+                )
             )
-            nextStart += ch2Len
+            nextStart += len
         }
 
-        val io13Role = hw.io13Role
-
-        // Bus 2: Auxiliary IO13 as 3rd LED strip if selected
-        if (io13Role == Io13PinRole.STRIP_CH3) {
-            insArray.put(
-                JSONObject().apply {
-                    put("start", nextStart)
-                    put("len", ch3Len)
-                    put("pin", JSONArray().put(13))
-                    put("order", 0)
-                    put("rev", false)
-                    put("skip", 0)
-                    put("type", 22)
-                    put("ref", false)
-                }
+        val payload = WledHwConfigPayload(
+            hw = WledHwObject(
+                led = WledLedConfig(
+                    total = nextStart,
+                    maxpwr = 2500,
+                    ledma = 55,
+                    ins = busItems
+                )
             )
-        }
-
-        val ledObj = JSONObject().apply {
-            put("maxpwr", hw.maxCurrentMa.coerceIn(500, 15000))
-            put("ledma", 55)
-            put("ins", insArray)
-        }
-
-        // Button 0 on GPIO 13 (unless IO13 is used as 3rd LED strip)
-        val btnType = io13Role.wledButtonType
-        val btnPin = if (btnType > 0) 13 else -1
-        val btnIns = JSONArray().put(
-            JSONObject().apply {
-                put("type", btnType)
-                put("pin", JSONArray().put(btnPin))
-                put("macros", JSONArray().put(0).put(0).put(0))
-            }
         )
-
-        val hwObj = JSONObject().apply {
-            put("led", ledObj)
-            put("btn", JSONObject().put("ins", btnIns))
-        }
-
-        return JSONObject().put("hw", hwObj).toString()
+        return hwCfgAdapter.toJson(payload)
     }
 
-    internal fun buildSegmentLayoutJson(hw: WledHardwareConfig): String {
-        val ch1Len = hw.ch1LedCount.coerceIn(1, 1000)
-        val ch2Len = hw.ch2LedCount.coerceIn(1, 1000)
-        val ch3Len = hw.ch3LedCount.coerceIn(1, 1000)
+    internal fun buildSegmentLayoutJson(channels: List<ChannelConfig>): String {
+        val segItems = mutableListOf<WledSegmentLayoutItem>()
+        var channelBaseOffset = 0
+        var nextSegmentId = 0
 
-        val segArray = JSONArray()
-        // Segment 0: Channel 1 (IO16)
-        segArray.put(
-            JSONObject().apply {
-                put("id", 0)
-                put("start", 0)
-                put("stop", ch1Len)
-                put("n", hw.ch1ZoneName.ifBlank { "Main Frame (IO16)" })
-                put("on", true)
+        for (channel in channels) {
+            for (seg in channel.segments) {
+                val globalStart = channelBaseOffset + seg.startLed
+                val globalStop = channelBaseOffset + seg.endLed
+                segItems.add(
+                    WledSegmentLayoutItem(
+                        id = nextSegmentId,
+                        start = globalStart,
+                        stop = globalStop,
+                        n = seg.label.ifBlank { "Segment $nextSegmentId" },
+                        on = true
+                    )
+                )
+                nextSegmentId++
             }
+            channelBaseOffset += channel.ledCount.coerceAtLeast(0)
+        }
+
+        return segLayoutAdapter.toJson(
+            WledSegmentLayoutPayload(
+                on = true,
+                seg = segItems
+            )
         )
-
-        var nextStart = ch1Len
-        // Segment 1: Channel 2 (IO2)
-        if (hw.ch2Enabled) {
-            segArray.put(
-                JSONObject().apply {
-                    put("id", 1)
-                    put("start", nextStart)
-                    put("stop", nextStart + ch2Len)
-                    put("n", hw.ch2ZoneName.ifBlank { "Rear Tail (IO2)" })
-                    put("on", true)
-                }
-            )
-            nextStart += ch2Len
-        } else {
-            // Delete Segment 1 by setting stop = 0
-            segArray.put(JSONObject().apply { put("id", 1); put("start", 0); put("stop", 0) })
-        }
-
-        // Segment 2: Auxiliary IO13 if configured as 3rd LED strip
-        if (hw.io13Role == Io13PinRole.STRIP_CH3) {
-            segArray.put(
-                JSONObject().apply {
-                    put("id", 2)
-                    put("start", nextStart)
-                    put("stop", nextStart + ch3Len)
-                    put("n", "Aux Strip (IO13)")
-                    put("on", true)
-                }
-            )
-        }
-
-        return JSONObject().apply {
-            put("on", true)
-            put("seg", segArray)
-        }.toString()
     }
 
     /**
@@ -305,7 +278,7 @@ open class WledController(context: Context? = null) {
             networkTransport.getHttpClient().newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
                 val bodyString = response.body?.string() ?: return null
-                val jsonObject = org.json.JSONObject(bodyString)
+                val jsonObject = JSONObject(bodyString)
                 val presetsList = mutableListOf<WledPreset>()
                 val keys = jsonObject.keys()
                 while (keys.hasNext()) {
@@ -334,7 +307,7 @@ open class WledController(context: Context? = null) {
             networkTransport.getHttpClient().newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
                 val bodyString = response.body?.string() ?: return null
-                val jsonArray = org.json.JSONArray(bodyString)
+                val jsonArray = JSONArray(bodyString)
                 val list = mutableListOf<String>()
                 for (i in 0 until jsonArray.length()) {
                     list.add(jsonArray.getString(i))
@@ -357,7 +330,7 @@ open class WledController(context: Context? = null) {
             networkTransport.getHttpClient().newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
                 val bodyString = response.body?.string() ?: return null
-                val jsonArray = org.json.JSONArray(bodyString)
+                val jsonArray = JSONArray(bodyString)
                 val list = mutableListOf<String>()
                 for (i in 0 until jsonArray.length()) {
                     list.add(jsonArray.getString(i))
@@ -371,41 +344,36 @@ open class WledController(context: Context? = null) {
     }
 
     /**
-     * Sends the configured WledLook along with dynamic brightness to the ESP32/ESP8266
-     * over the bound USB-C Ethernet or Wi-Fi interface (and mirrors over USB Serial if connected).
+     * Composes all segment looks into a single /json/state HTTP POST payload with per-segment
+     * transition times (`tt`) and no top-level transition field.
      */
-    open fun sendState(host: String, look: WledLook, brightness: Float): Boolean {
+    open fun sendComposedState(
+        host: String,
+        segmentLooks: Map<Int, WledLook>,
+        brightness: Float
+    ): Boolean {
+        if (segmentLooks.isEmpty()) return false
         val url = cleanUrl(host, "/json/state")
-
-        // 1. Map look colors from hex to RGB List
-        val rgbColors = look.colors.map { hexToRgb(it) }
-
-        // 2. Map brightness (0.0 - 1.0) to (0 - 255)
         val bright8Bit = (brightness * 255).toInt().coerceIn(0, 255)
-
-        // 3. Construct Target Segments based on SegmentTarget enum
-        val targetSegmentsList = if (look.presetId == null) {
-            val targetIds: List<Int?> = look.targetSegments.targetSegmentIds
-            targetIds.map { segId ->
+        val segments = segmentLooks.entries
+            .sortedBy { it.key }
+            .map { (segId, look) ->
                 WledSegment(
                     id = segId,
-                    col = rgbColors,
+                    on = true,
+                    tt = (look.transitionMs / 100).coerceAtLeast(0),
+                    col = look.colors.map { hexToRgb(it) },
                     fx = look.effectId,
                     fp = look.paletteId ?: 0,
                     sx = look.speed ?: 128,
                     ix = look.intensity ?: 128
                 )
             }
-        } else {
-            null
-        }
 
         val payload = WledStatePayload(
             on = bright8Bit > 0,
             bri = bright8Bit,
-            ps = look.presetId,
-            transition = look.transitionMs / 100,
-            seg = targetSegmentsList
+            seg = segments
         )
 
         val json = payloadAdapter.toJson(payload)
@@ -447,6 +415,33 @@ open class WledController(context: Context? = null) {
                 sentViaUsbSerial
             }
         }
+    }
+
+    internal fun buildComposedStateJson(
+        segmentLooks: Map<Int, WledLook>,
+        brightness: Float
+    ): String {
+        val bright8Bit = (brightness * 255).toInt().coerceIn(0, 255)
+        val segments = segmentLooks.entries
+            .sortedBy { it.key }
+            .map { (segId, look) ->
+                WledSegment(
+                    id = segId,
+                    on = true,
+                    tt = (look.transitionMs / 100).coerceAtLeast(0),
+                    col = look.colors.map { hexToRgb(it) },
+                    fx = look.effectId,
+                    fp = look.paletteId ?: 0,
+                    sx = look.speed ?: 128,
+                    ix = look.intensity ?: 128
+                )
+            }
+        val payload = WledStatePayload(
+            on = bright8Bit > 0,
+            bri = bright8Bit,
+            seg = segments
+        )
+        return payloadAdapter.toJson(payload)
     }
 
     private fun cleanUrl(host: String, path: String): String {

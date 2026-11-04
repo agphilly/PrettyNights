@@ -11,6 +11,8 @@ import com.example.config.AppConfig
 import com.example.config.AppJson
 import com.example.config.ConfigManager
 import com.example.config.RideMarkerType
+import com.example.config.SegmentRole
+import com.example.config.SegmentRoleType
 import com.example.config.SensorAxis
 import com.example.config.SpeedSourceMode
 import com.example.config.WledLook
@@ -91,7 +93,7 @@ open class RideOrchestrator(
 
     // WLED Sink throttling state (MANDATORY per System Design Section 5 & 6)
     @Volatile
-    private var lastSentLook: WledLook? = null
+    private var lastSentSegmentLooks: Map<Int, WledLook>? = null
 
     @Volatile
     private var lastSentState: RideState? = null
@@ -273,6 +275,48 @@ open class RideOrchestrator(
         intervalsDone.await()
     }
 
+    /**
+     * Single point where ride state maps to a WledLook for a given segment role.
+     */
+    private fun lookForSegment(role: SegmentRole, state: RideState): WledLook {
+        val ambientLook = when (state) {
+            RideState.IDLE         -> activeConfig.idleLook
+            RideState.CRUISING     -> activeConfig.cruisingLook
+            // Ambient segments hold the last cruising look during braking
+            RideState.BRAKING      -> activeConfig.cruisingLook
+            RideState.BRAKING_HOLD -> activeConfig.cruisingLook
+        }
+        return when (role.roleType) {
+            SegmentRoleType.AMBIENT -> ambientLook
+            SegmentRoleType.NOTIFICATION -> when (role) {
+                SegmentRole.BRAKE_LIGHTS -> when (state) {
+                    RideState.BRAKING      -> activeConfig.brakingLook
+                    RideState.BRAKING_HOLD -> activeConfig.brakingHoldLook
+                    else                   -> ambientLook  // inherit ambient when not triggered
+                }
+                else -> ambientLook
+            }
+        }
+    }
+
+    private fun resolveRepresentativeLook(
+        state: RideState,
+        segmentLooks: Map<Int, WledLook>
+    ): WledLook {
+        val allSegments = activeConfig.channels.flatMap { it.segments }
+        val ambientSeg = allSegments.firstOrNull { it.role.roleType == SegmentRoleType.AMBIENT }
+        if (ambientSeg != null) {
+            segmentLooks[ambientSeg.wledSegmentId]?.let { return it }
+        }
+        segmentLooks.values.firstOrNull()?.let { return it }
+        return when (state) {
+            RideState.IDLE -> activeConfig.idleLook
+            RideState.CRUISING -> activeConfig.cruisingLook
+            RideState.BRAKING -> activeConfig.brakingLook
+            RideState.BRAKING_HOLD -> activeConfig.brakingHoldLook
+        }
+    }
+
     private suspend fun doStart() {
         _markerCountFlow.value = 0
         _lastMarkerLabelFlow.value = null
@@ -310,7 +354,10 @@ open class RideOrchestrator(
         _telemetryFlow.value = enrichTelemetry(stateMachine.latestTelemetry, nowMonoMs)
 
         // 4. Enqueue initial IDLE state interval & WLED interval sequentially
-        val initialLook = activeConfig.idleLook
+        val initialSegmentLooks: Map<Int, WledLook> = activeConfig.channels
+            .flatMap { it.segments }
+            .associate { seg -> seg.wledSegmentId to lookForSegment(seg.role, RideState.IDLE) }
+        val initialLook = resolveRepresentativeLook(RideState.IDLE, initialSegmentLooks)
         lastLoggedState = RideState.IDLE
         lastLoggedLook = initialLook
         val initBrightness = activeConfig.stateMachine.idleBrightness
@@ -336,8 +383,8 @@ open class RideOrchestrator(
             )
         )
 
-        // 5. Send initial look to WLED (or skip HTTP if logOnlyMode == true)
-        sendToWled(initialLook, RideState.IDLE, initBrightness, nowMonoMs)
+        // 5. Send initial composed state to WLED (or skip HTTP if logOnlyMode == true)
+        sendToWled(initialSegmentLooks, RideState.IDLE, initBrightness, nowMonoMs)
 
         // 6. Register Sensors
         if (sensorManager != null) {
@@ -395,7 +442,7 @@ open class RideOrchestrator(
         configCollectionJob = null
 
         activeSessionId = null
-        lastSentLook = null
+        lastSentSegmentLooks = null
         lastSentState = null
         lastLoggedState = null
         lastLoggedLook = null
@@ -489,18 +536,7 @@ open class RideOrchestrator(
         updateLock(output.state)
 
         // Fan Out 2: Handle WLED State updates & Throttling (Sink)
-        val correspondingLook = when (output.state) {
-            RideState.IDLE -> activeConfig.idleLook
-            RideState.CRUISING -> activeConfig.cruisingLook
-            RideState.BRAKING -> activeConfig.brakingLook
-            RideState.BRAKING_HOLD -> activeConfig.brakingHoldLook
-        }
-
-        // Log state transition & WLED intervals BEFORE updating lastSentLook
-        evalAndLogIntervals(output, correspondingLook, nowMono)
-
-        // Evaluate WLED sink (skips outbound HTTP call if logOnlyMode == true)
-        evalAndSendWledSink(correspondingLook, output, nowMono)
+        evalAndSendWledSink(output, nowMono)
 
         // Broadcast stats for home screen diagnostics
         val modePrefix = if (activeConfig.logOnlyMode) "[LOG ONLY] " else ""
@@ -536,11 +572,19 @@ open class RideOrchestrator(
         )
     }
 
-    // --- WLED SINK THROTTLING (Section 5 & 6) ---
+    // --- WLED SINK THROTTLING & ROLE-BASED FAN-OUT ---
 
-    private fun evalAndSendWledSink(look: WledLook, output: StateMachineOutput, now: Long) {
+    private fun evalAndSendWledSink(output: StateMachineOutput, now: Long) {
+        // Build the segment look map from all configured segments across all channels
+        val segmentLooks: Map<Int, WledLook> = activeConfig.channels
+            .flatMap { it.segments }
+            .associate { seg -> seg.wledSegmentId to lookForSegment(seg.role, output.state) }
+
+        val representativeLook = resolveRepresentativeLook(output.state, segmentLooks)
+        evalAndLogIntervals(output, representativeLook, now)
+
         val stateChanged = output.state != lastSentState
-        val lookChanged = look != lastSentLook
+        val lookChanged = segmentLooks != lastSentSegmentLooks
 
         val timeSinceLastSend = now - lastSendTimeMs
         val brightnessDelta = kotlin.math.abs(output.brightness - lastSentBrightness)
@@ -549,22 +593,27 @@ open class RideOrchestrator(
                 (timeSinceLastSend >= 250L || brightnessDelta >= 0.10f)
 
         if (stateChanged || lookChanged || shouldSendBrightnessUpdate) {
-            sendToWled(look, output.state, output.brightness, now)
+            sendToWled(segmentLooks, output.state, output.brightness, now)
         }
     }
 
-    private fun sendToWled(look: WledLook, state: RideState, brightness: Float, now: Long) {
-        lastSentLook = look
+    private fun sendToWled(
+        segmentLooks: Map<Int, WledLook>,
+        state: RideState,
+        brightness: Float,
+        now: Long
+    ) {
+        lastSentSegmentLooks = segmentLooks
         lastSentState = state
         lastSentBrightness = brightness
         lastSendTimeMs = now
 
         // In Log-Only mode, we skip outbound HTTP calls to the WLED controller while keeping
         // 100% of the state machine evaluation and telemetry logging pipeline active.
-        if (activeConfig.logOnlyMode) return
+        if (activeConfig.logOnlyMode || segmentLooks.isEmpty()) return
 
         coroutineScope.launch(Dispatchers.IO) {
-            wledController.sendState(activeConfig.wledHost, look, brightness)
+            wledController.sendComposedState(activeConfig.wledHost, segmentLooks, brightness)
         }
     }
 

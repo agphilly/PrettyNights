@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.config.AppConfig
-import com.example.config.WledHardwareConfig
+import com.example.config.ChannelConfig
 import com.example.wled.WledHardwareLiveInfo
 import com.example.wled.WledTransportState
 
@@ -59,7 +59,7 @@ fun SettingsScreen(
         onRefreshTransport = vm::refreshTransport,
         onTestConnection = vm::testConnection,
         onReadHardwareInfo = { vm.readHardwareInfo(effectiveConfig.wledHost) },
-        onPushHardwareAndSegments = { hw -> vm.pushHardwareAndSegments(effectiveConfig.wledHost, hw) },
+        onPushHardwareAndSegments = { channels -> vm.pushHardwareAndSegments(effectiveConfig.wledHost, channels) },
         onConfigSave = effectiveSave,
         onNavigateToTuning = onNavigateToTuning
     )
@@ -78,7 +78,7 @@ fun SettingsContent(
     onRefreshTransport: () -> Unit = {},
     onTestConnection: (String) -> Unit = {},
     onReadHardwareInfo: () -> Unit = {},
-    onPushHardwareAndSegments: (WledHardwareConfig) -> Unit = {},
+    onPushHardwareAndSegments: (List<ChannelConfig>) -> Unit = {},
     onConfigSave: (AppConfig) -> Unit,
     onNavigateToTuning: () -> Unit = {}
 ) {
@@ -195,7 +195,7 @@ fun SettingsContent(
                 onConfigSave = onConfigSave
             )
 
-            // 2. NaveiTech NV-LC616WL Hardware, I/O & Multi-Segment Configuration
+            // 2. WLED Channels & Segment Roles Configuration
             WledHardwareConfigCard(
                 config = config,
                 isLocked = isLocked,

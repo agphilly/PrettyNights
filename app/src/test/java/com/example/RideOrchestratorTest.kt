@@ -1,11 +1,13 @@
 package com.example
 
-import android.content.Context
-import androidx.test.core.app.ApplicationProvider
 import com.example.config.ActiveSpeedSource
 import com.example.config.AppConfig
+import com.example.config.ChannelConfig
 import com.example.config.ConfigManager
+import com.example.config.SegmentConfig
+import com.example.config.SegmentRole
 import com.example.config.SpeedSourceMode
+import com.example.config.WledLook
 import com.example.logging.BoschSampleEntity
 import com.example.logging.ImuSampleEntity
 import com.example.logging.LogRepository
@@ -28,22 +30,14 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 import java.util.Collections
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.random.Random
 
 /**
- * Concurrency & lifecycle unit tests for [RideOrchestrator]:
- * - Item 1: Single sequential coroutine writer owns `openState` and `openWled` so out-of-order IO delays
- *   can never leak an unclosed interval row or close the same interval twice.
- * - Item 2: Single sequential command channel owns `start()` and `stop()` so rapid back-to-back
- *   calls leave `_isRunning`, sessions, and sensor listeners in a deterministic state.
+ * Concurrency, lifecycle, and role-based segment fan-out unit tests for [RideOrchestrator].
  */
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
 class RideOrchestratorTest {
 
     private class FakeSpeedProvider(var currentSpeedMps: Float = 0f) : SpeedProvider {
@@ -68,9 +62,22 @@ class RideOrchestratorTest {
         override fun removeBoschPacketListener(listener: (BoschLiveDataPacket, BoschLiveDataState) -> Unit) {}
     }
 
-    private class FakeConfigManager(context: Context, initial: AppConfig = AppConfig(logOnlyMode = true)) : ConfigManager(context) {
+    private class FakeConfigManager(initial: AppConfig = AppConfig(logOnlyMode = true)) : ConfigManager(null) {
         val state = MutableStateFlow(initial)
         override val configFlow: Flow<AppConfig> get() = state
+    }
+
+    private class RecordingWledController : WledController(null) {
+        val sentPayloads = CopyOnWriteArrayList<Map<Int, WledLook>>()
+
+        override fun sendComposedState(
+            host: String,
+            segmentLooks: Map<Int, WledLook>,
+            brightness: Float
+        ): Boolean {
+            sentPayloads.add(segmentLooks)
+            return true
+        }
     }
 
     private class FakeDelayedLogRepository : LogRepository(null) {
@@ -110,7 +117,6 @@ class RideOrchestratorTest {
         }
 
         override suspend fun insertStateInterval(interval: StateIntervalEntity): Long {
-            // Random 1-5ms delay simulating variable SQLite disk write latency
             delay(Random.nextLong(1L, 6L))
             val id = nextId.incrementAndGet()
             stateIntervals[id] = interval.copy(id = id)
@@ -149,12 +155,11 @@ class RideOrchestratorTest {
 
     @Test
     fun intervalWriterSequentialChannel_closesEveryIntervalOnceAndNeverTwice() = runBlocking {
-        val context = ApplicationProvider.getApplicationContext<Context>()
         val fakeSpeed = FakeSpeedProvider()
-        val fakeConfig = FakeConfigManager(context, AppConfig(logOnlyMode = true))
+        val fakeConfig = FakeConfigManager(AppConfig(logOnlyMode = true))
         val fakeLogs = FakeDelayedLogRepository()
         val orchestrator = RideOrchestrator(
-            context = context,
+            context = null,
             speedProvider = fakeSpeed,
             wledController = WledController(null),
             configManager = fakeConfig,
@@ -166,7 +171,6 @@ class RideOrchestratorTest {
         orchestrator.awaitIdle()
 
         var nowMs = 1000L
-        // Trigger 20 rapid state transitions back-to-back with zero delay between ticks
         for (cycle in 1..5) {
             // 1. IDLE -> CRUISING (speed = 20 km/h = 5.56 m/s)
             fakeSpeed.currentSpeedMps = 20f / 3.6f
@@ -192,7 +196,6 @@ class RideOrchestratorTest {
         orchestrator.stop()
         orchestrator.awaitIdle()
 
-        // Verify at least 20 state intervals were recorded (1 initial IDLE + 20 transitions)
         assertTrue(
             "Expected >= 20 state intervals, got ${fakeLogs.stateIntervals.size}",
             fakeLogs.stateIntervals.size >= 20
@@ -202,13 +205,11 @@ class RideOrchestratorTest {
             fakeLogs.wledIntervals.size >= 15
         )
 
-        // Every state interval must be closed with a non-null endTimeMonotonicMs and closed exactly once
         for ((id, row) in fakeLogs.stateIntervals) {
             assertNotNull("State interval $id was left unclosed!", row.endTimeMonotonicMs)
             assertEquals("State interval $id close count mismatch", 1, fakeLogs.stateCloseCounts[id])
         }
 
-        // Every WLED interval must be closed with a non-null endTimeMonotonicMs and closed exactly once
         for ((id, row) in fakeLogs.wledIntervals) {
             assertNotNull("WLED interval $id was left unclosed!", row.endTimeMonotonicMs)
             assertEquals("WLED interval $id close count mismatch", 1, fakeLogs.wledCloseCounts[id])
@@ -216,13 +217,117 @@ class RideOrchestratorTest {
     }
 
     @Test
-    fun startStopCommandChannel_serializesBackToBackCallsWithoutLeakingSessionsOrListeners() = runBlocking {
-        val context = ApplicationProvider.getApplicationContext<Context>()
+    fun roleBasedSegmentFanOut_holdsCruisingOnAmbientWhileTriggeringBrakeSegments() = runBlocking {
         val fakeSpeed = FakeSpeedProvider()
-        val fakeConfig = FakeConfigManager(context, AppConfig(logOnlyMode = true))
+        val idleLook = WledLook(effectId = 1, colors = listOf("#FF7800"), transitionMs = 400)
+        val cruiseLook = WledLook(effectId = 2, colors = listOf("#00B4FF"), transitionMs = 300)
+        val brakeLook = WledLook(effectId = 3, colors = listOf("#FF0000"), transitionMs = 0)
+        val holdLook = WledLook(effectId = 4, colors = listOf("#AA0000"), transitionMs = 0)
+
+        val config = AppConfig(
+            logOnlyMode = false,
+            idleLook = idleLook,
+            cruisingLook = cruiseLook,
+            brakingLook = brakeLook,
+            brakingHoldLook = holdLook,
+            channels = listOf(
+                ChannelConfig(
+                    gpioPin = 16,
+                    ledCount = 60,
+                    stripType = 22,
+                    colorOrder = 0,
+                    segments = listOf(
+                        SegmentConfig(
+                            wledSegmentId = 0,
+                            startLed = 0,
+                            endLed = 60,
+                            label = "Frame",
+                            role = SegmentRole.MAIN_FRAME
+                        )
+                    )
+                ),
+                ChannelConfig(
+                    gpioPin = 2,
+                    ledCount = 30,
+                    stripType = 22,
+                    colorOrder = 0,
+                    segments = listOf(
+                        SegmentConfig(
+                            wledSegmentId = 1,
+                            startLed = 0,
+                            endLed = 30,
+                            label = "Tail",
+                            role = SegmentRole.BRAKE_LIGHTS
+                        )
+                    )
+                )
+            )
+        )
+
+        val fakeConfig = FakeConfigManager(config)
+        val fakeLogs = FakeDelayedLogRepository()
+        val recordingWled = RecordingWledController()
+        val orchestrator = RideOrchestrator(
+            context = null,
+            speedProvider = fakeSpeed,
+            wledController = recordingWled,
+            configManager = fakeConfig,
+            lockController = LockController(),
+            logRepository = fakeLogs
+        )
+
+        orchestrator.start()
+        orchestrator.awaitIdle()
+        delay(50)
+
+        // 1. Initial IDLE: both Seg 0 (MAIN_FRAME) and Seg 1 (BRAKE_LIGHTS) receive idleLook
+        assertTrue(recordingWled.sentPayloads.isNotEmpty())
+        val idleSent = recordingWled.sentPayloads.last()
+        assertEquals(idleLook, idleSent[0])
+        assertEquals(idleLook, idleSent[1])
+
+        // 2. CRUISING: both Seg 0 and Seg 1 receive cruisingLook
+        fakeSpeed.currentSpeedMps = 20f / 3.6f
+        orchestrator.onLinearAccelerationTick(0f, 0f, 0f, 1020L)
+        delay(50)
+        val cruiseSent = recordingWled.sentPayloads.last()
+        assertEquals(cruiseLook, cruiseSent[0])
+        assertEquals(cruiseLook, cruiseSent[1])
+
+        // 3. BRAKING: Seg 0 (MAIN_FRAME) holds cruisingLook, Seg 1 (BRAKE_LIGHTS) triggers brakingLook
+        orchestrator.onLinearAccelerationTick(0f, 3.5f, 0f, 1040L)
+        orchestrator.onLinearAccelerationTick(0f, 3.5f, 0f, 1250L)
+        delay(50)
+        val brakeSent = recordingWled.sentPayloads.last()
+        assertEquals(cruiseLook, brakeSent[0])
+        assertEquals(brakeLook, brakeSent[1])
+
+        // 4. BRAKING_HOLD: Seg 0 (MAIN_FRAME) holds cruisingLook, Seg 1 (BRAKE_LIGHTS) triggers brakingHoldLook
+        fakeSpeed.currentSpeedMps = 0.2f
+        orchestrator.onLinearAccelerationTick(0f, 3.5f, 0f, 1270L)
+        delay(50)
+        val holdSent = recordingWled.sentPayloads.last()
+        assertEquals(cruiseLook, holdSent[0])
+        assertEquals(holdLook, holdSent[1])
+
+        // Verify WledIntervalEntity logged representative MAIN_FRAME look (idleLook -> cruiseLook)
+        val loggedLookJsons = fakeLogs.wledIntervals.values.map { it.lookJson }
+        assertTrue(loggedLookJsons.any { it.contains("#FF7800") })
+        assertTrue(loggedLookJsons.any { it.contains("#00B4FF") })
+        // Since MAIN_FRAME holds cruisingLook during braking, representative look does not switch to brakeLook
+        assertFalse(loggedLookJsons.any { it.contains("#FF0000") })
+
+        orchestrator.stop()
+        orchestrator.awaitIdle()
+    }
+
+    @Test
+    fun startStopCommandChannel_serializesBackToBackCallsWithoutLeakingSessionsOrListeners() = runBlocking {
+        val fakeSpeed = FakeSpeedProvider()
+        val fakeConfig = FakeConfigManager(AppConfig(logOnlyMode = true))
         val fakeLogs = FakeDelayedLogRepository()
         val orchestrator = RideOrchestrator(
-            context = context,
+            context = null,
             speedProvider = fakeSpeed,
             wledController = WledController(null),
             configManager = fakeConfig,
@@ -230,7 +335,6 @@ class RideOrchestratorTest {
             logRepository = fakeLogs
         )
 
-        // Fire start(), stop(), start(), stop(), start() back-to-back without awaiting between calls
         orchestrator.start()
         orchestrator.stop()
         orchestrator.start()
@@ -239,14 +343,12 @@ class RideOrchestratorTest {
 
         orchestrator.awaitIdle()
 
-        // Final command was start(): must be running with 1 active session and 3 total created (2 closed, 1 open)
         assertTrue(orchestrator.isRunningFlow.value)
         assertEquals(3, fakeLogs.sessions.size)
         val openSessionsAfterStarts = fakeLogs.sessions.values.filter { it.endTimeMonotonicMs == null }
         assertEquals(1, openSessionsAfterStarts.size)
         assertTrue(orchestrator.registeredSensorListenerCount <= 1)
 
-        // Now stop() and verify everything is closed and unregistered
         orchestrator.stop()
         orchestrator.awaitIdle()
 

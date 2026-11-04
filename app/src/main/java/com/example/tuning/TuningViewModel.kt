@@ -10,6 +10,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.PrettyNightsApp
 import com.example.config.AppConfig
 import com.example.config.ConfigManager
+import com.example.config.SegmentRole
+import com.example.config.SegmentRoleType
+import com.example.config.WledLook
 import com.example.logging.LogRepository
 import com.example.logging.SessionEntity
 import com.example.ride.RideOrchestrator
@@ -86,27 +89,51 @@ class TuningViewModel(
                     delay(100 - timeSinceLast)
                 }
                 val currentConfig = config.value
-                val currentLook = when (state) {
-                    RideState.IDLE -> currentConfig.idleLook
-                    RideState.CRUISING -> currentConfig.cruisingLook
-                    RideState.BRAKING -> currentConfig.brakingLook
-                    else -> null
-                }
-                if (currentLook != null) {
-                    try {
-                        val success = withContext(ioDispatcher) {
-                            wledController.sendState(
-                                currentConfig.wledHost,
-                                currentLook,
-                                brightness
-                            )
+                val configuredSegs = currentConfig.channels.flatMap { it.segments }
+                val segmentLooks: Map<Int, WledLook> = if (configuredSegs.isNotEmpty()) {
+                    configuredSegs.associate { seg ->
+                        val ambientLook = when (state) {
+                            RideState.IDLE -> currentConfig.idleLook
+                            RideState.CRUISING,
+                            RideState.BRAKING,
+                            RideState.BRAKING_HOLD -> currentConfig.cruisingLook
                         }
-                        _wledUnreachableError.value = !success
-                    } catch (_: Exception) {
-                        _wledUnreachableError.value = true
+                        val resolved = when (seg.role.roleType) {
+                            SegmentRoleType.AMBIENT -> ambientLook
+                            SegmentRoleType.NOTIFICATION -> when (seg.role) {
+                                SegmentRole.BRAKE_LIGHTS -> when (state) {
+                                    RideState.BRAKING -> currentConfig.brakingLook
+                                    RideState.BRAKING_HOLD -> currentConfig.brakingHoldLook
+                                    else -> ambientLook
+                                }
+                                else -> ambientLook
+                            }
+                        }
+                        seg.wledSegmentId to resolved
                     }
-                    lastSentTime = SystemClock.elapsedRealtime()
+                } else {
+                    val fallbackLook = when (state) {
+                        RideState.IDLE -> currentConfig.idleLook
+                        RideState.CRUISING -> currentConfig.cruisingLook
+                        RideState.BRAKING -> currentConfig.brakingLook
+                        RideState.BRAKING_HOLD -> currentConfig.brakingHoldLook
+                    }
+                    mapOf(0 to fallbackLook)
                 }
+
+                try {
+                    val success = withContext(ioDispatcher) {
+                        wledController.sendComposedState(
+                            currentConfig.wledHost,
+                            segmentLooks,
+                            brightness
+                        )
+                    }
+                    _wledUnreachableError.value = !success
+                } catch (_: Exception) {
+                    _wledUnreachableError.value = true
+                }
+                lastSentTime = SystemClock.elapsedRealtime()
             }
         }
     }

@@ -8,8 +8,9 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.PrettyNightsApp
 import com.example.config.AppConfig
+import com.example.config.ChannelConfig
 import com.example.config.ConfigManager
-import com.example.config.WledHardwareConfig
+import com.example.config.withSequentialSegmentIds
 import com.example.safety.LockController
 import com.example.wled.WledController
 import com.example.wled.WledHardwareLiveInfo
@@ -50,8 +51,9 @@ class SettingsViewModel(
     val hardwareSyncIsError: StateFlow<Boolean> = _hardwareSyncIsError.asStateFlow()
 
     fun saveConfig(updated: AppConfig) {
+        val normalized = updated.copy(channels = updated.channels.withSequentialSegmentIds())
         viewModelScope.launch {
-            configManager.updateConfig { updated }
+            configManager.updateConfig { normalized }
         }
     }
 
@@ -99,13 +101,14 @@ class SettingsViewModel(
         }
     }
 
-    fun pushHardwareAndSegments(host: String, hw: WledHardwareConfig) {
+    fun pushHardwareAndSegments(host: String, channels: List<ChannelConfig>) {
+        val normalizedChannels = channels.withSequentialSegmentIds()
         _isSyncingHardware.value = true
         _hardwareSyncMessage.value = "Pushing /json/cfg & /json/state to $host..."
         _hardwareSyncIsError.value = false
         viewModelScope.launch {
             val (ok, refreshedInfo) = withContext(ioDispatcher) {
-                val pushed = wledController.pushHardwareAndSegments(host, hw)
+                val pushed = wledController.pushHardwareAndSegments(host, normalizedChannels)
                 val info = if (pushed) wledController.fetchHardwareInfo(host) else null
                 pushed to info
             }
@@ -115,7 +118,8 @@ class SettingsViewModel(
             }
             if (ok) {
                 _hardwareSyncIsError.value = false
-                _hardwareSyncMessage.value = "Provisioned GPIO 16/2/13, ${hw.maxCurrentMa}mA limiter & segments on WLED!"
+                val totalSegments = normalizedChannels.sumOf { it.segments.size }
+                _hardwareSyncMessage.value = "Provisioned ${normalizedChannels.size} channel(s) & $totalSegments segment(s) on WLED!"
             } else {
                 _hardwareSyncIsError.value = true
                 _hardwareSyncMessage.value = "WLED unreachable at $host — settings saved locally."
