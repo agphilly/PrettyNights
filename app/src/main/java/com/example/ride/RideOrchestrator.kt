@@ -671,7 +671,8 @@ open class RideOrchestrator(
                     try {
                         logRepository.insertImuSamples(batchList)
                     } catch (e: Exception) {
-                        Log.e("Orchestrator", "Failed to batch log IMU samples: ${e.message}")
+                        Log.e("Orchestrator", "Failed to batch log IMU samples, re-queuing ${batchList.size}: ${e.message}")
+                        batchList.forEach { imuSampleBuffer.offer(it) }
                     }
                 }
             }

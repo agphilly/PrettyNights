@@ -124,8 +124,15 @@ open class WledController(context: Context? = null) {
             .get()
             .build()
         val startMs = SystemClock.elapsedRealtime()
+        val client = networkTransport.getHttpClient()
+        if (client == null) {
+            Log.w("WledController", "Local network required but unavailable — skipping request")
+            val serialOk = networkTransport.trySendUsbSerialJson("""{"v":true}""")
+            val elapsedMs = (SystemClock.elapsedRealtime() - startMs).coerceAtLeast(1L)
+            networkTransport.recordPingResult(host, serialOk, if (serialOk) elapsedMs else null)
+            return serialOk
+        }
         return try {
-            val client = networkTransport.getHttpClient()
             client.newCall(request).execute().use { response ->
                 val elapsedMs = (SystemClock.elapsedRealtime() - startMs).coerceAtLeast(1L)
                 val ok = response.isSuccessful
@@ -145,11 +152,17 @@ open class WledController(context: Context? = null) {
      * Fetches live hardware & LED bus info from the WLED controller at /json/info
      */
     open fun fetchHardwareInfo(host: String): WledHardwareLiveInfo? {
+        val client = networkTransport.getHttpClient()
+        if (client == null) {
+            Log.w("WledController", "Local network required but unavailable — skipping request")
+            networkTransport.recordPingResult(host, false, null)
+            return null
+        }
         val url = cleanUrl(host, "/json/info")
         val request = Request.Builder().url(url).get().build()
         val startMs = SystemClock.elapsedRealtime()
         return try {
-            networkTransport.getHttpClient().newCall(request).execute().use { response ->
+            client.newCall(request).execute().use { response ->
                 val elapsedMs = (SystemClock.elapsedRealtime() - startMs).coerceAtLeast(1L)
                 if (!response.isSuccessful) {
                     networkTransport.recordPingResult(host, false, null)
@@ -179,10 +192,14 @@ open class WledController(context: Context? = null) {
      * with globally sequential segment IDs and channel-relative LED offsets on /json/state.
      */
     open fun pushHardwareAndSegments(host: String, channels: List<ChannelConfig>): Boolean {
+        val client = networkTransport.getHttpClient()
+        if (client == null) {
+            Log.w("WledController", "Local network required but unavailable — skipping request")
+            return false
+        }
         val cfgPayload = buildHardwareCfgJson(channels)
         val segPayload = buildSegmentLayoutJson(channels)
 
-        val client = networkTransport.getHttpClient()
         return try {
             val cfgReq = Request.Builder()
                 .url(cleanUrl(host, "/json/cfg"))
@@ -272,10 +289,15 @@ open class WledController(context: Context? = null) {
      * Fetches WLED presets from the controller at /presets.json
      */
     open fun fetchPresets(host: String): List<WledPreset>? {
+        val client = networkTransport.getHttpClient()
+        if (client == null) {
+            Log.w("WledController", "Local network required but unavailable — skipping request")
+            return null
+        }
         val url = cleanUrl(host, "/presets.json")
         val request = Request.Builder().url(url).get().build()
         return try {
-            networkTransport.getHttpClient().newCall(request).execute().use { response ->
+            client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
                 val bodyString = response.body?.string() ?: return null
                 val jsonObject = JSONObject(bodyString)
@@ -301,10 +323,15 @@ open class WledController(context: Context? = null) {
      * Fetches WLED speed effects from the controller at /json/eff
      */
     open fun fetchEffects(host: String): List<String>? {
+        val client = networkTransport.getHttpClient()
+        if (client == null) {
+            Log.w("WledController", "Local network required but unavailable — skipping request")
+            return null
+        }
         val url = cleanUrl(host, "/json/eff")
         val request = Request.Builder().url(url).get().build()
         return try {
-            networkTransport.getHttpClient().newCall(request).execute().use { response ->
+            client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
                 val bodyString = response.body?.string() ?: return null
                 val jsonArray = JSONArray(bodyString)
@@ -324,10 +351,15 @@ open class WledController(context: Context? = null) {
      * Fetches WLED color palettes from the controller at /json/pal
      */
     open fun fetchPalettes(host: String): List<String>? {
+        val client = networkTransport.getHttpClient()
+        if (client == null) {
+            Log.w("WledController", "Local network required but unavailable — skipping request")
+            return null
+        }
         val url = cleanUrl(host, "/json/pal")
         val request = Request.Builder().url(url).get().build()
         return try {
-            networkTransport.getHttpClient().newCall(request).execute().use { response ->
+            client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
                 val bodyString = response.body?.string() ?: return null
                 val jsonArray = JSONArray(bodyString)
@@ -381,6 +413,12 @@ open class WledController(context: Context? = null) {
         // Also send over direct USB-C Serial (115200 baud JSON API) if a USB Serial WLED device is plugged in
         val sentViaUsbSerial = networkTransport.trySendUsbSerialJson(json)
 
+        val client = networkTransport.getHttpClient()
+        if (client == null) {
+            Log.w("WledController", "Local network required but unavailable — skipping request")
+            return sentViaUsbSerial
+        }
+
         val body = json.toRequestBody(jsonMediaType)
         val request = Request.Builder()
             .url(url)
@@ -388,7 +426,6 @@ open class WledController(context: Context? = null) {
             .build()
 
         val startMs = SystemClock.elapsedRealtime()
-        val client = networkTransport.getHttpClient()
 
         return try {
             client.newCall(request).execute().use { response ->

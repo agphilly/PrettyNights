@@ -219,15 +219,15 @@ class WledNetworkTransport(private val context: Context?) {
 
     /**
      * Returns an OkHttpClient bound to the active USB-C Ethernet or Wi-Fi network when
-     * `lockToLocalNetwork` is enabled, or the default client otherwise.
+     * `lockToLocalNetwork` is enabled (or null if no local network is available), or the default client otherwise.
      */
-    fun getHttpClient(): OkHttpClient {
+    fun getHttpClient(): OkHttpClient? {
         refreshTransportState()
         if (!lockToLocalNetwork) {
             return defaultHttpClient
         }
 
-        val targetNetwork = findPreferredLocalNetwork() ?: return defaultHttpClient
+        val targetNetwork = findPreferredLocalNetwork() ?: return null
         val existingNet = cachedBoundNetwork
         val existingClient = cachedBoundHttpClient
         if (existingNet == targetNetwork && existingClient != null) {

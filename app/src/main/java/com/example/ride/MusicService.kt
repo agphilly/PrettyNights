@@ -84,7 +84,7 @@ class MusicService : Service() {
             startForeground(
                 NOTIFICATION_ID,
                 notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
             )
         } else {
             startForeground(NOTIFICATION_ID, notification)

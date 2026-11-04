@@ -273,13 +273,13 @@ class FusedSpeedProvider(
 
     override val speed: Float
         get() = when (activeSpeedSource) {
-            ActiveSpeedSource.BOSCH -> boschProvider.speed
+            ActiveSpeedSource.BOSCH -> if (boschProvider.isAvailable) boschProvider.speed else 0f
             ActiveSpeedSource.GPS, ActiveSpeedSource.GPS_FALLBACK -> gpsProvider.speed
         }
 
     override val lastUpdateTimeMs: Long
         get() = when (activeSpeedSource) {
-            ActiveSpeedSource.BOSCH -> boschProvider.lastUpdateTimeMs
+            ActiveSpeedSource.BOSCH -> if (boschProvider.isAvailable) boschProvider.lastUpdateTimeMs else 0L
             ActiveSpeedSource.GPS, ActiveSpeedSource.GPS_FALLBACK -> gpsProvider.lastUpdateTimeMs
         }
 
