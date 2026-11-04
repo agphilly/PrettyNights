@@ -198,7 +198,7 @@ class JsRideStateMachine {
 
     // 6. Global Brightness Envelope Mapping
     const floor = cfg.globalMinBrightness;
-    const ceiling = (this.currentState === "BRAKING" && cfg.brakingIgnoresGlobalMax)
+    const ceiling = ((this.currentState === "BRAKING" || this.currentState === "BRAKING_HOLD") && cfg.brakingIgnoresGlobalMax)
       ? 1.0
       : cfg.globalMaxBrightness;
 

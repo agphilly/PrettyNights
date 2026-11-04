@@ -182,13 +182,33 @@ open class RideOrchestrator(
                         LifecycleCmd.Stop -> if (activeSessionId != null) doStop()
                         is LifecycleCmd.Barrier -> cmd.done.complete(Unit)
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.e("RideOrchestrator", "Lifecycle command ${cmd::class.simpleName} failed: ${e.message}")
+                    emergencyCleanup()
                     activeSessionId = null
                     _isRunning.value = false
                     if (cmd is LifecycleCmd.Barrier) cmd.done.complete(Unit)
                 }
             }
+        }
+    }
+
+    private fun emergencyCleanup() {
+        runCatching {
+            sensorManager?.unregisterListener(this@RideOrchestrator)
+            _registeredSensorListeners.set(0)
+        }
+        runCatching { speedProvider.removeBoschPacketListener(boschPacketListener) }
+        runCatching { speedProvider.stop() }
+        runCatching {
+            batchLoggingJob?.cancel()
+            batchLoggingJob = null
+        }
+        runCatching {
+            configCollectionJob?.cancel()
+            configCollectionJob = null
         }
     }
 
@@ -420,7 +440,20 @@ open class RideOrchestrator(
         speedProvider.removeBoschPacketListener(boschPacketListener)
         speedProvider.stop()
 
-        // 3. Close open Logging Intervals & flush remaining IMU samples
+        // 3. Cancel and join batch writer first so any in-flight insert completes, then drain & flush remaining IMU samples
+        batchLoggingJob?.cancelAndJoin()
+        batchLoggingJob = null
+
+        val remaining = mutableListOf<ImuSampleEntity>()
+        while (imuSampleBuffer.isNotEmpty()) {
+            imuSampleBuffer.poll()?.let { remaining.add(it) }
+        }
+        if (remaining.isNotEmpty()) {
+            try { logRepository.insertImuSamples(remaining) }
+            catch (e: Exception) { Log.e("RideOrchestrator", "Final IMU flush failed: ${e.message}") }
+        }
+
+        // 4. Close open Logging Intervals & Room Session Record
         activeSessionId?.let { sessionId ->
             intervalOps.trySend(IntervalOp.CloseState(nowMonoMs, stateMachine.lastOutputBrightness))
             intervalOps.trySend(IntervalOp.CloseWled(nowMonoMs))
@@ -428,22 +461,12 @@ open class RideOrchestrator(
             intervalOps.trySend(IntervalOp.Flush(flushed))
             flushed.await()
 
-            val remainingSamples = mutableListOf<ImuSampleEntity>()
-            while (imuSampleBuffer.isNotEmpty()) {
-                imuSampleBuffer.poll()?.let { remainingSamples.add(it) }
-            }
-            logRepository.insertImuSamples(remainingSamples)
-
             // Close Room Session Record
             logRepository.endSession(sessionId, nowMonoMs)
         }
 
-        // 4. Reset safety state
+        // 5. Reset safety state
         lockController.forceUnlock()
-
-        // 5. Cancel batch logger coroutine
-        batchLoggingJob?.cancel()
-        batchLoggingJob = null
 
         configCollectionJob?.cancel()
         configCollectionJob = null

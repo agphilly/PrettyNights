@@ -257,8 +257,8 @@ class WledNetworkTransport(private val context: Context?) {
                 })
                 .build()
         } catch (e: Exception) {
-            Log.d(TAG, "Falling back to default OkHttpClient: ${e.message}")
-            defaultHttpClient
+            Log.w(TAG, "Failed to build network-bound OkHttpClient, local network unavailable: ${e.message}")
+            return null
         }
 
         cachedBoundNetwork = targetNetwork
