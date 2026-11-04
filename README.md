@@ -36,6 +36,7 @@ For complete functional requirements, state-machine matrices, packet layouts, UI
 | Document | Contents |
 | :--- | :--- |
 | [**`FEATURE_SPECIFICATIONS.md`**](./FEATURE_SPECIFICATIONS.md) | End-to-end product & engineering requirements, state formulas, packet schemas, and verification matrix. |
+| [**`docs/BRANCHING_WORKFLOW.md`**](./docs/BRANCHING_WORKFLOW.md) | Branch responsibilities, phase promotion flow, and validation required before merging to `main`. |
 | [**`docs/ARCHITECTURE.md`**](./docs/ARCHITECTURE.md) | System architecture diagram, 50 Hz sensor-to-WLED pipeline, foreground services, and persistence design. |
 | [**`docs/COMPONENT_MAP.md`**](./docs/COMPONENT_MAP.md) | Complete directory tree and file-by-file responsibilities across all 37 Kotlin source files and the Web Workbench. |
 | [**`docs/PROTOCOLS.md`**](./docs/PROTOCOLS.md) | WLED HTTP JSON API, UDP Port 11988 V2 binary layout, Bosch Live Data Interface V1.0 (`eb20`/`eb21`) protobuf spec, and IMU projection math. |
