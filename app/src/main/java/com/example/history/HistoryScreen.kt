@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.logging.*
+import com.example.ui.theme.appColors
 import java.util.*
 
 @Composable
@@ -265,13 +266,13 @@ fun SessionCard(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(
-                                    if (session.logOnlyMode) Color(0xFF00838F) else Color(0xFF2E7D32)
+                                    if (session.logOnlyMode) MaterialTheme.appColors.logOnlyBadge else MaterialTheme.appColors.statusPassText
                                 )
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = if (session.logOnlyMode) "LOG ONLY" else "WLED ACTIVE",
-                                color = Color.White,
+                                color = MaterialTheme.appColors.onBadgeText,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -281,7 +282,7 @@ fun SessionCard(
                         Text(
                             text = formattedDate,
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color.Gray
+                            color = MaterialTheme.appColors.mutedText
                         )
                     }
                     Text(
@@ -511,11 +512,7 @@ fun SessionCard(
                                                 .size(10.dp)
                                                 .clip(RoundedCornerShape(2.dp))
                                                 .background(
-                                                    when (stateName) {
-                                                        "BRAKING", "BRAKING_HOLD" -> Color.Red
-                                                        "CRUISING" -> Color.Cyan
-                                                        else -> Color(0xFFC084FC)
-                                                    }
+                                                    MaterialTheme.appColors.colorForRideStateName(stateName)
                                                 )
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))

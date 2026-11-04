@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.config.AppConfig
 import com.example.ride.BoschLiveDataState
+import com.example.ui.theme.appColors
 import com.example.wled.WledLinkType
 import com.example.wled.WledTransportState
 
@@ -96,7 +97,7 @@ fun HomeReadinessCard(
                             Text(
                                 text = if (locationGranted) "Ready to measure 50 Hz IMU & GPS speed" else "Access required for ride analytics",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.Gray
+                                color = MaterialTheme.appColors.mutedText
                             )
                         }
                     }
@@ -105,12 +106,12 @@ fun HomeReadinessCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (locationGranted) Color(0xFF1B5E20) else Color(0xFFC62828))
+                            .background(if (locationGranted) MaterialTheme.appColors.statusPassBadge else MaterialTheme.appColors.statusDanger)
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = if (locationGranted) "PASS" else "FAIL",
-                            color = Color.White,
+                            color = MaterialTheme.appColors.onBadgeText,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -154,7 +155,7 @@ fun HomeReadinessCard(
                                     else -> "Always logged alongside GPS (Service Solicitation eb20)"
                                 },
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.Gray
+                                color = MaterialTheme.appColors.mutedText
                             )
                         }
                     }
@@ -164,9 +165,9 @@ fun HomeReadinessCard(
                             .clip(RoundedCornerShape(8.dp))
                             .background(
                                 when {
-                                    boschState.isConnected -> Color(0xFF1B5E20)
-                                    bluetoothGranted -> Color(0xFF0277BD)
-                                    else -> Color(0xFF616161)
+                                    boschState.isConnected -> MaterialTheme.appColors.statusPassBadge
+                                    bluetoothGranted -> MaterialTheme.appColors.statusReadyBadge
+                                    else -> MaterialTheme.appColors.statusStandbyBadge
                                 }
                             )
                             .padding(horizontal = 10.dp, vertical = 4.dp)
@@ -177,7 +178,7 @@ fun HomeReadinessCard(
                                 bluetoothGranted -> "READY"
                                 else -> "STANDBY"
                             },
-                            color = Color.White,
+                            color = MaterialTheme.appColors.onBadgeText,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -216,7 +217,7 @@ fun HomeReadinessCard(
                             Text(
                                 text = if (microphoneGranted) "Ready to capture internal audio" else "Access required for music reactions",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.Gray
+                                color = MaterialTheme.appColors.mutedText
                             )
                         }
                     }
@@ -225,12 +226,12 @@ fun HomeReadinessCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (microphoneGranted) Color(0xFF1B5E20) else Color(0xFFC62828))
+                            .background(if (microphoneGranted) MaterialTheme.appColors.statusPassBadge else MaterialTheme.appColors.statusDanger)
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = if (microphoneGranted) "PASS" else "FAIL",
-                            color = Color.White,
+                            color = MaterialTheme.appColors.onBadgeText,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -285,7 +286,7 @@ fun HomeReadinessCard(
                                 }
                             },
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color.Gray
+                            color = MaterialTheme.appColors.mutedText
                         )
                     }
                 }
@@ -296,12 +297,12 @@ fun HomeReadinessCard(
                         .clip(RoundedCornerShape(8.dp))
                         .background(
                             if (wledBypassed) {
-                                Color(0xFF1B5E20)
+                                MaterialTheme.appColors.statusPassBadge
                             } else {
                                 when (wledStatus) {
-                                    ScreenWledStatus.REACHABLE -> Color(0xFF1B5E20)
-                                    ScreenWledStatus.CHECKING -> Color(0xFFE65100)
-                                    else -> Color(0xFFC62828)
+                                    ScreenWledStatus.REACHABLE -> MaterialTheme.appColors.statusPassBadge
+                                    ScreenWledStatus.CHECKING -> MaterialTheme.appColors.statusCheckingBadge
+                                    else -> MaterialTheme.appColors.statusDanger
                                 }
                             }
                         )
@@ -317,7 +318,7 @@ fun HomeReadinessCard(
                                 else -> "FAIL"
                             }
                         },
-                        color = Color.White,
+                        color = MaterialTheme.appColors.onBadgeText,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -500,7 +501,7 @@ fun HomeReadinessCard(
             // Ready (either WLED reachable OR Log-Only mode active)
             Card(
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF1B5E20).copy(alpha = 0.15f)
+                    containerColor = MaterialTheme.appColors.statusPassBadge.copy(alpha = 0.15f)
                 ),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -510,7 +511,7 @@ fun HomeReadinessCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF2E7D32))
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.appColors.statusPassText)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = when {
@@ -520,7 +521,7 @@ fun HomeReadinessCard(
                         },
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2E7D32)
+                        color = MaterialTheme.appColors.statusPassText
                     )
                 }
             }

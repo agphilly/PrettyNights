@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.config.WledLook
 import com.example.statemachine.RideState
+import com.example.ui.theme.appColors
 import com.example.wled.WledPreset
 import kotlinx.coroutines.delay
 
@@ -63,11 +64,12 @@ fun StateLookCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val primaryColorHex = look.colors.getOrNull(0) ?: "#FF7800"
-                    val parsedColor = remember(primaryColorHex) {
+                    val fallbackColor = MaterialTheme.appColors.rideStateBraking
+                    val parsedColor = remember(primaryColorHex, fallbackColor) {
                         try {
                             Color(android.graphics.Color.parseColor(primaryColorHex))
                         } catch (_: Exception) {
-                            Color.Red
+                            fallbackColor
                         }
                     }
                     Box(
@@ -225,7 +227,7 @@ fun StateLookCard(
 
                         previewStatus?.let { status ->
                             val color = when (status) {
-                                "Sent successfully!" -> Color(0xFF4CAF50)
+                                "Sent successfully!" -> MaterialTheme.appColors.statusSuccess
                                 "WLED unreachable!" -> MaterialTheme.colorScheme.error
                                 else -> MaterialTheme.colorScheme.primary
                             }

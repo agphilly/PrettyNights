@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.config.AppConfig
+import com.example.ui.theme.appColors
 import com.example.wled.WledLinkType
 import com.example.wled.WledTransportState
 
@@ -117,9 +118,9 @@ fun WledNetworkSettingsCard(
 
             // --- LIVE DETECTED PHYSICAL LINK BANNER ---
             val linkColor = when (transportState.linkType) {
-                WledLinkType.ETHERNET_WIRED -> Color(0xFF00C853)
-                WledLinkType.WIFI_BOUND -> Color(0xFF29B6F6)
-                WledLinkType.USB_SERIAL_OTG -> Color(0xFFFFB300)
+                WledLinkType.ETHERNET_WIRED -> MaterialTheme.appColors.linkEthernetWired
+                WledLinkType.WIFI_BOUND -> MaterialTheme.appColors.linkWifiBound
+                WledLinkType.USB_SERIAL_OTG -> MaterialTheme.appColors.linkUsbSerial
                 WledLinkType.SYSTEM_DEFAULT -> MaterialTheme.colorScheme.secondary
                 WledLinkType.OFFLINE -> MaterialTheme.colorScheme.error
             }
@@ -394,7 +395,7 @@ fun WledNetworkSettingsCard(
                 testResult?.let { result ->
                     val isReachable = result.startsWith("Reachable")
                     val color = when {
-                        isReachable -> Color(0xFF4CAF50)
+                        isReachable -> MaterialTheme.appColors.statusSuccess
                         result == "Unreachable" -> MaterialTheme.colorScheme.error
                         else -> MaterialTheme.colorScheme.primary
                     }

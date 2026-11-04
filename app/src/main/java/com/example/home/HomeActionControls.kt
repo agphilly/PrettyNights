@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.config.RideMarkerType
+import com.example.ui.theme.appColors
 
 @Composable
 fun HomeActionControls(
@@ -85,8 +86,8 @@ fun HomeActionControls(
             .testTag("btn_ride_toggle"),
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (isRunning || isMusicRunning) Color(0xFFC62828) else MaterialTheme.colorScheme.primary,
-            disabledContainerColor = Color.Gray.copy(alpha = 0.25f)
+            containerColor = if (isRunning || isMusicRunning) MaterialTheme.appColors.statusDanger else MaterialTheme.colorScheme.primary,
+            disabledContainerColor = MaterialTheme.appColors.mutedText.copy(alpha = 0.25f)
         )
     ) {
         Row(
@@ -168,13 +169,13 @@ fun HomeActionControls(
                 ) {
                     MarkerStampButton(
                         marker = RideMarkerType.HARD_BRAKE,
-                        color = Color(0xFFC62828),
+                        color = MaterialTheme.appColors.colorForMarker(RideMarkerType.HARD_BRAKE),
                         modifier = Modifier.weight(1f),
                         onStamp = onStampMarker
                     )
                     MarkerStampButton(
                         marker = RideMarkerType.LIGHT_BRAKE,
-                        color = Color(0xFFEF6C00),
+                        color = MaterialTheme.appColors.colorForMarker(RideMarkerType.LIGHT_BRAKE),
                         modifier = Modifier.weight(1f),
                         onStamp = onStampMarker
                     )
@@ -186,13 +187,13 @@ fun HomeActionControls(
                 ) {
                     MarkerStampButton(
                         marker = RideMarkerType.ROAD_BUMP,
-                        color = Color(0xFF6A1B9A),
+                        color = MaterialTheme.appColors.colorForMarker(RideMarkerType.ROAD_BUMP),
                         modifier = Modifier.weight(1f),
                         onStamp = onStampMarker
                     )
                     MarkerStampButton(
                         marker = RideMarkerType.BOSCH_GLITCH,
-                        color = Color(0xFF00838F),
+                        color = MaterialTheme.appColors.colorForMarker(RideMarkerType.BOSCH_GLITCH),
                         modifier = Modifier.weight(1f),
                         onStamp = onStampMarker
                     )

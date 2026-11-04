@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.statemachine.RideState
+import com.example.ui.theme.appColors
 import kotlin.math.sin
 
 @Composable
@@ -57,6 +58,8 @@ fun HomeVisualizerCard(
         label = "waveOffset"
     )
 
+    val appColors = MaterialTheme.appColors
+
     if (selectedMode == "STANDARD") {
         // --- Glowing Bike Art visual ---
         Box(
@@ -65,50 +68,54 @@ fun HomeVisualizerCard(
                 .height(170.dp)
                 .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
                 .clip(RoundedCornerShape(20.dp))
-                .background(Color.Black),
+                .background(appColors.visualizerSurface),
             contentAlignment = Alignment.Center
         ) {
             // Background grid pattern
+            val gridStrokeColor = appColors.visualizerGrid.copy(alpha = 0.15f)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .drawBehind {
-                        val strokeColor = Color.DarkGray.copy(alpha = 0.15f)
                         val step = 35.dp.toPx()
                         var x = 0f
                         while (x < size.width) {
-                            drawLine(strokeColor, start = Offset(x, 0f), end = Offset(x, size.height), strokeWidth = 1f)
+                            drawLine(gridStrokeColor, start = Offset(x, 0f), end = Offset(x, size.height), strokeWidth = 1f)
                             x += step
                         }
                         var y = 0f
                         while (y < size.height) {
-                            drawLine(strokeColor, start = Offset(0f, y), end = Offset(size.width, y), strokeWidth = 1f)
+                            drawLine(gridStrokeColor, start = Offset(0f, y), end = Offset(size.width, y), strokeWidth = 1f)
                             y += step
                         }
                     }
             )
 
+            val wheelStrokeColor = appColors.visualizerGrid.copy(alpha = 0.35f)
+            val frameStrokeColor = appColors.visualizerFrame.copy(alpha = 0.35f)
+            val coreLineColor = appColors.onBadgeText
+
             Canvas(modifier = Modifier.size(240.dp, 140.dp)) {
                 // Wheels
                 drawCircle(
-                    color = Color.DarkGray.copy(alpha = 0.35f),
+                    color = wheelStrokeColor,
                     radius = 28.dp.toPx(),
                     center = Offset(40.dp.toPx(), 95.dp.toPx()),
                     style = Stroke(width = 3.dp.toPx())
                 )
                 drawCircle(
-                    color = Color.DarkGray.copy(alpha = 0.35f),
+                    color = wheelStrokeColor,
                     radius = 28.dp.toPx(),
                     center = Offset(200.dp.toPx(), 95.dp.toPx()),
                     style = Stroke(width = 3.dp.toPx())
                 )
 
                 // Frame bars
-                drawLine(Color.Gray.copy(alpha = 0.35f), start = Offset(40.dp.toPx(), 95.dp.toPx()), end = Offset(100.dp.toPx(), 95.dp.toPx()), strokeWidth = 2.5.dp.toPx())
-                drawLine(Color.Gray.copy(alpha = 0.35f), start = Offset(100.dp.toPx(), 95.dp.toPx()), end = Offset(150.dp.toPx(), 40.dp.toPx()), strokeWidth = 2.5.dp.toPx())
-                drawLine(Color.Gray.copy(alpha = 0.35f), start = Offset(150.dp.toPx(), 40.dp.toPx()), end = Offset(200.dp.toPx(), 95.dp.toPx()), strokeWidth = 2.5.dp.toPx())
-                drawLine(Color.Gray.copy(alpha = 0.35f), start = Offset(40.dp.toPx(), 95.dp.toPx()), end = Offset(90.dp.toPx(), 50.dp.toPx()), strokeWidth = 2.5.dp.toPx())
-                drawLine(Color.Gray.copy(alpha = 0.35f), start = Offset(90.dp.toPx(), 50.dp.toPx()), end = Offset(150.dp.toPx(), 40.dp.toPx()), strokeWidth = 2.5.dp.toPx())
+                drawLine(frameStrokeColor, start = Offset(40.dp.toPx(), 95.dp.toPx()), end = Offset(100.dp.toPx(), 95.dp.toPx()), strokeWidth = 2.5.dp.toPx())
+                drawLine(frameStrokeColor, start = Offset(100.dp.toPx(), 95.dp.toPx()), end = Offset(150.dp.toPx(), 40.dp.toPx()), strokeWidth = 2.5.dp.toPx())
+                drawLine(frameStrokeColor, start = Offset(150.dp.toPx(), 40.dp.toPx()), end = Offset(200.dp.toPx(), 95.dp.toPx()), strokeWidth = 2.5.dp.toPx())
+                drawLine(frameStrokeColor, start = Offset(40.dp.toPx(), 95.dp.toPx()), end = Offset(90.dp.toPx(), 50.dp.toPx()), strokeWidth = 2.5.dp.toPx())
+                drawLine(frameStrokeColor, start = Offset(90.dp.toPx(), 50.dp.toPx()), end = Offset(150.dp.toPx(), 40.dp.toPx()), strokeWidth = 2.5.dp.toPx())
 
                 // Draw glowing neon light string if running
                 val glowBrush = Brush.linearGradient(
@@ -130,7 +137,7 @@ fun HomeVisualizerCard(
                     )
                     drawPath(
                         path = path,
-                        color = Color.White,
+                        color = coreLineColor,
                         style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
                     )
                 }
@@ -143,11 +150,7 @@ fun HomeVisualizerCard(
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.8.sp,
                 color = if (isRunning) {
-                    when (activeState) {
-                        RideState.BRAKING, RideState.BRAKING_HOLD -> Color.Red
-                        RideState.CRUISING -> Color.Cyan
-                        RideState.IDLE -> Color(0xFFC084FC)
-                    }
+                    appColors.colorForRideState(activeState)
                 } else Color.LightGray,
                 style = TextStyle(
                     shadow = Shadow(
@@ -168,7 +171,7 @@ fun HomeVisualizerCard(
                 .height(170.dp)
                 .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
                 .clip(RoundedCornerShape(20.dp))
-                .background(Color.Black)
+                .background(appColors.visualizerSurface)
                 .padding(16.dp),
             contentAlignment = Alignment.BottomCenter
         ) {
@@ -190,12 +193,12 @@ fun HomeVisualizerCard(
                         label = "bar_$i"
                     )
 
-                    val barColor = remember(i) {
+                    val barColor = remember(i, appColors) {
                         val ratio = i / 15f
                         when {
-                            ratio < 0.4f -> Color(0xFF00E5FF) // Cyan
-                            ratio < 0.75f -> Color(0xFFD500F9) // Purple / Magenta
-                            else -> Color(0xFFFF3D00) // Orange / Red
+                            ratio < 0.4f -> appColors.spectrumLow
+                            ratio < 0.75f -> appColors.spectrumMid
+                            else -> appColors.spectrumHigh
                         }
                     }
 
@@ -215,10 +218,10 @@ fun HomeVisualizerCard(
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.8.sp,
-                color = if (isMusicRunning) Color(0xFFE040FB) else Color.Gray,
+                color = if (isMusicRunning) appColors.musicStreamingAccent else appColors.mutedText,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                    .background(appColors.visualizerSurface.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
                     .padding(horizontal = 12.dp, vertical = 4.dp)
             )
         }

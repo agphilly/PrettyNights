@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.ride.BoschLiveDataSpec
 import com.example.statemachine.StateMachineTelemetry
+import com.example.ui.theme.appColors
 
 @Composable
 fun TuningTelemetryCard(
@@ -59,12 +60,12 @@ fun TuningTelemetryCard(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(Color.Green)
+                                .background(MaterialTheme.appColors.statusLiveDot)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             if (telemetry.logOnlyMode) "LIVE (LOG ONLY)" else "LIVE",
-                            color = Color.Green,
+                            color = MaterialTheme.appColors.statusLiveDot,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -72,7 +73,7 @@ fun TuningTelemetryCard(
                 } else {
                     Text(
                         "Off",
-                        color = Color.Gray,
+                        color = MaterialTheme.appColors.mutedText,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold
                     )

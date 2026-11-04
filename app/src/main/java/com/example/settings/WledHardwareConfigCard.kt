@@ -31,6 +31,7 @@ import com.example.config.ChannelConfig
 import com.example.config.SegmentConfig
 import com.example.config.SegmentRole
 import com.example.config.withSequentialSegmentIds
+import com.example.ui.theme.appColors
 import com.example.wled.WledHardwareLiveInfo
 
 internal const val MAX_SEGMENTS_PER_CHANNEL = 10
@@ -129,7 +130,7 @@ fun WledHardwareConfigCard(
                         Text(
                             text = "Configure GPIO strips and assign Ambient or Brake roles per segment",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color.Gray
+                            color = MaterialTheme.appColors.mutedText
                         )
                     }
                 }
@@ -380,7 +381,7 @@ fun WledHardwareConfigCard(
                     text = msg,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (syncIsError) MaterialTheme.colorScheme.error else Color(0xFF4CAF50),
+                    color = if (syncIsError) MaterialTheme.colorScheme.error else MaterialTheme.appColors.statusSuccess,
                     modifier = Modifier.testTag("hardware_sync_status_text")
                 )
             }
@@ -427,7 +428,7 @@ private fun ChannelConfigItemCard(
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TerminalBadge(color = Color(0xFF00B4FF), text = "GPIO ${channel.gpioPin}")
+                TerminalBadge(color = MaterialTheme.appColors.hardwareGpioBadge, text = "GPIO ${channel.gpioPin}")
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "GPIO ${channel.gpioPin} — ${channel.ledCount} LEDs",
@@ -519,14 +520,12 @@ private fun ChannelConfigItemCard(
         }
 
         // Strip coverage indicator (always shown below the segment list)
+        val coverageColor = if (isFullyCovered) MaterialTheme.appColors.statusSuccess else MaterialTheme.appColors.statusWarning
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(8.dp))
-                .background(
-                    if (isFullyCovered) Color(0xFF4CAF50).copy(alpha = 0.14f)
-                    else Color(0xFFFACC15).copy(alpha = 0.14f)
-                )
+                .background(coverageColor.copy(alpha = 0.14f))
                 .padding(horizontal = 10.dp, vertical = 8.dp)
                 .testTag("coverage_indicator_${channel.gpioPin}"),
             verticalAlignment = Alignment.CenterVertically,
@@ -539,7 +538,7 @@ private fun ChannelConfigItemCard(
                 Icon(
                     imageVector = if (isFullyCovered) Icons.Default.CheckCircle else Icons.Default.Warning,
                     contentDescription = null,
-                    tint = if (isFullyCovered) Color(0xFF4CAF50) else Color(0xFFFACC15),
+                    tint = coverageColor,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -553,7 +552,7 @@ private fun ChannelConfigItemCard(
             Text(
                 text = if (isFullyCovered) "Strip fully configured" else "Unassigned LEDs hold last state",
                 style = MaterialTheme.typography.labelSmall,
-                color = if (isFullyCovered) Color(0xFF4CAF50) else Color(0xFFFACC15),
+                color = coverageColor,
                 fontWeight = FontWeight.SemiBold
             )
         }
