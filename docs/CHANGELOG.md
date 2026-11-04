@@ -37,7 +37,23 @@ All notable changes, architectural milestones, and component updates for the **P
 ---
 
 ## [Unreleased]
-*No unreleased changes currently staged. Changes made after Build 12 (`v2.1.0`) will appear here until the next GitHub push.*
+
+### Fixed
+- **`MusicService` Android 14+ Foreground Service Type (`AndroidManifest.xml` & `MusicService.kt`)**:
+  - Added `<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />`, updated `MusicService`'s manifest declaration to `android:foregroundServiceType="microphone|mediaProjection"`, and passed `ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION` to `startForeground()`.
+- **Stale Bosch Speed Guard in `BOSCH_ONLY` Mode (`SpeedProvider.kt`)**:
+  - Updated `FusedSpeedProvider.speed` and `lastUpdateTimeMs` so `ActiveSpeedSource.BOSCH` checks `boschProvider.isAvailable` and returns `0f` / `0L` when BLE disconnects rather than holding a stale value indefinitely.
+- **IMU Batch Retry & Shutdown Flush Ordering (`RideOrchestrator.kt`)**:
+  - Re-queued drained `batchList` samples back into `imuSampleBuffer` (`batchList.forEach { imuSampleBuffer.offer(it) }`) if `logRepository.insertImuSamples(batchList)` throws an exception in `startBatchWriter()`.
+  - Updated `doStop()` to call `batchLoggingJob?.cancelAndJoin()` *before* draining and flushing `imuSampleBuffer` so in-flight batch inserts cannot race with the final shutdown flush.
+- **Strict Local Network Locking (`WledNetworkTransport.kt` & `WledController.kt`)**:
+  - Changed `WledNetworkTransport.getHttpClient()` to return `OkHttpClient?` and return `null` (both when `findPreferredLocalNetwork()` returns `null` and in the `catch (e: Exception)` block around `OkHttpClient.Builder()`) instead of falling back to `defaultHttpClient`.
+  - Updated all 7 `getHttpClient()` call sites in `WledController` (`ping`, `fetchHardwareInfo`, `pushHardwareAndSegments`, `fetchPresets`, `fetchEffects`, `fetchPalettes`, `sendComposedState`) to log a warning and skip the HTTP request when `null`.
+- **`BRAKING_HOLD` Brightness Ceiling Continuity & Kotlin/JS Parity (`RideStateMachine.kt`, `ride-state-machine.js`, `parity.json`)**:
+  - Updated both `RideStateMachine` (Kotlin) and `JsRideStateMachine` (JavaScript workbench mirror) so the `1.0` global brightness ceiling bypass (`brakingIgnoresGlobalMax`) applies during both `BRAKING` and `BRAKING_HOLD`, preventing a mid-stop brightness drop to `globalMaxBrightness` (`0.80`).
+- **Lifecycle Consumer Coroutine Resilience & Resource Teardown (`RideOrchestrator.kt`)**:
+  - Added `emergencyCleanup()` with individual `runCatching` guards around sensor unregistration, Bosch listener removal, `speedProvider.stop()`, `batchLoggingJob?.cancel()`, and `configCollectionJob?.cancel()`.
+  - Updated the `lifecycleCmds` consumer loop to re-throw `CancellationException` and invoke `emergencyCleanup()`, reset `activeSessionId = null` and `_isRunning.value = false`, and complete any pending `LifecycleCmd.Barrier` on other exceptions.
 
 ---
 

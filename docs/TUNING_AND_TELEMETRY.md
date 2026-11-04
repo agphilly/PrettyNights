@@ -33,8 +33,8 @@ To tune the bike's state transitions, brake detection, and lighting responsivene
 | Parameter | Default Value | Unit / Range | Description |
 | :--- | :--- | :--- | :--- |
 | `globalMinBrightness` | `0.20` | `0.0 – 1.0` | Output floor for all looks; prevents complete blackout |
-| `globalMaxBrightness` | `0.80` | `0.0 – 1.0` | Ambient-state ceiling (`IDLE` / `CRUISING` / `BRAKING_HOLD`) |
-| `brakingIgnoresGlobalMax` | `true` | `Boolean` | When `true`, active `BRAKING` ramps up to `1.0` regardless of `globalMaxBrightness` |
+| `globalMaxBrightness` | `0.80` | `0.0 – 1.0` | Ambient-state ceiling (`IDLE` / `CRUISING`, and `BRAKING` / `BRAKING_HOLD` when `brakingIgnoresGlobalMax == false`) |
+| `brakingIgnoresGlobalMax` | `true` | `Boolean` | When `true`, both `BRAKING` and `BRAKING_HOLD` use a `1.0` ceiling regardless of `globalMaxBrightness` |
 | `idleEnterSpeedKmh` | `2.0` | `km/h (0 – 15)` | Speed below which the bike is eligible to enter `IDLE` or `BRAKING_HOLD` |
 | `idleExitSpeedKmh` | `4.0` | `km/h (0 – 20)` | Speed above which the bike exits `IDLE` or `BRAKING_HOLD` and enters `CRUISING` |
 | `idleEntryFadeS` | `0.6` | `Seconds (0 – 5)` | Entry fade duration when transitioning into `IDLE` |

@@ -89,10 +89,13 @@
 #### 2.2 Global Brightness Envelope & WLED Sink Throttling
 - **Envelope Mapping:**
   $$B_{\text{final}} = \text{clamp}\left(B_{\text{globalMin}} + (B_{\text{ceiling}} - B_{\text{globalMin}}) \cdot B_{\text{clean}}, 0.0, 1.0\right)$$
-  where $B_{\text{ceiling}} = 1.0$ if `currentState == BRAKING && brakingIgnoresGlobalMax`, else `globalMaxBrightness` (`0.80`).
-- **Sink Throttling (`RideOrchestrator.evalAndSendWledSink`):**
-  - When `config.logOnlyMode == true`, WLED network dispatch is completely bypassed while state and look intervals continue to be evaluated and logged.
-  - When `config.logOnlyMode == false`, state transitions (`stateChanged`) or WLED look changes (`lookChanged`) dispatch over HTTP **immediately**; continuous brightness-only updates during fades or braking ramps dispatch only if $\Delta t \ge 250\text{ ms}$ or $|\Delta B| \ge 0.10$.
+  where $B_{\text{ceiling}} = 1.0$ if `(currentState == BRAKING || currentState == BRAKING_HOLD) && brakingIgnoresGlobalMax`, else `globalMaxBrightness` (`0.80`).
+- **Role-Based Segment Fan-Out & Sink Throttling (`RideOrchestrator.lookForSegment` & `evalAndSendWledSink`):**
+  - Maps active `RideState` to each configured WLED segment (`SegmentConfig.wledSegmentId`) based on its `SegmentRole`:
+    - `MAIN_FRAME` (`SegmentRoleType.AMBIENT`): Uses `idleLook` in `IDLE` and `cruisingLook` in `CRUISING`, `BRAKING`, and `BRAKING_HOLD` (ambient frame lighting holds steady during braking).
+    - `BRAKE_LIGHTS` (`SegmentRoleType.NOTIFICATION`): Inherits ambient look in `IDLE`/`CRUISING`, and triggers `brakingLook` in `BRAKING` and `brakingHoldLook` in `BRAKING_HOLD`.
+  - When `config.logOnlyMode == true`, WLED network dispatch is completely bypassed while state and representative look intervals (`MAIN_FRAME`/`AMBIENT` look when present, or first segment entry) continue to be evaluated and logged.
+  - When `config.logOnlyMode == false`, state transitions (`stateChanged`) or segment look map changes (`lookChanged`) dispatch a single composed `/json/state` HTTP POST (`WledController.sendComposedState`) with per-segment `"tt"` transition times **immediately**; continuous brightness-only updates during fades or braking ramps dispatch only if $\Delta t \ge 250\text{ ms}$ or $|\Delta B| \ge 0.10$.
 
 ---
 
@@ -128,9 +131,9 @@ Multicast at `50 Hz` (`20ms` interval) to `239.0.0.1:<audioSyncPort>` (default p
 ### Feature 4: WLED Look & Pattern Studio (`PatternsScreen`, `StateLookCard`, `ColorPickerSliders`, & `WledController`)
 
 #### 4.1 Functional Requirements
-- **FR-PAT-01 (Per-State Look Profiles):** Independent configuration of `idleLook`, `cruisingLook`, and `brakingLook`.
-- **FR-PAT-02 (Preset vs. Custom Segment Mode):** Each look can either reference an on-controller WLED Preset ID (`ps`) or define a custom segment (`fx` effect ID, `fp` palette ID, up to 3 hex RGB colors, `sx` speed, `ix` intensity, and `transitionMs`).
-- **FR-PAT-03 (Live Controller Metadata Discovery):** Queries `/presets.json`, `/json/eff`, and `/json/pal` from `wledHost` with automatic fallback to built-in defaults when offline.
+- **FR-PAT-01 (4-State Look Profiles):** Independent configuration of `idleLook`, `cruisingLook`, `brakingLook`, and `brakingHoldLook` (decoupled from physical segment topology).
+- **FR-PAT-02 (Preset vs. Custom Look Mode):** Each look can either reference an on-controller WLED Preset ID (`ps`) or define custom effect parameters (`fx` effect ID, `fp` palette ID, up to 3 hex RGB colors, `sx` speed, `ix` intensity, and per-segment `transitionMs` mapped to WLED `"tt"`).
+- **FR-PAT-03 (Live Controller Metadata Discovery & Offline Fallback):** Queries `/presets.json`, `/json/eff`, and `/json/pal` from `wledHost` with automatic fallback to built-in `DEFAULT_WLED_EFFECTS` and `DEFAULT_WLED_PALETTES` when offline.
 
 ---
 
@@ -157,7 +160,8 @@ Multicast at `50 Hz` (`20ms` interval) to `239.0.0.1:<audioSyncPort>` (default p
 - **FR-SET-01 (Host & Port Sanitization):** Automatically strips `http://`, `https://`, paths, queries, and ports from `wledHost` with inline user feedback; validates `audioSyncPort` in `1..65535`.
 - **FR-SET-02 (Speed Source Selection):** Configures `GPS_ONLY`, `BOSCH_PREFERRED`, or `BOSCH_ONLY` for live state-machine control while keeping parallel GPS + Bosch recording always active.
 - **FR-SET-03 (Mount Axis & Polarity Calibration):** Configures handlebar forward axis (`X`, `Y`, `Z`) and deceleration sign (`-1` or `+1`), plus guided 1-tap calibration capture.
-- **FR-SET-04 (Dual-Mode Local Network Binding & USB Serial Fallback):** `WledNetworkTransport` monitors `ConnectivityManager` to automatically prioritize wired USB-C Ethernet (`TRANSPORT_ETHERNET`) or bind HTTP/UDP sockets directly to Wi-Fi (`TRANSPORT_WIFI`) so Android never routes local WLED traffic over 5G/LTE cellular when `WLED-AP` has no internet access, with optional `115200` baud USB-C Serial JSON mirroring.
+- **FR-SET-04 (Dual-Mode Local Network Binding & Strict Cellular Lock):** `WledNetworkTransport` monitors `ConnectivityManager` to automatically prioritize wired USB-C Ethernet (`TRANSPORT_ETHERNET`) or bind HTTP/UDP sockets directly to Wi-Fi (`TRANSPORT_WIFI`). When `lockToLocalNetwork == true` and no local network is available (or network-bound `OkHttpClient` construction fails), `getHttpClient()` returns `null` so `WledController` skips requests rather than ever falling back to 5G/LTE cellular. Also supports optional `115200` baud USB-C Serial JSON mirroring.
+- **FR-SET-05 (Multi-Channel & Segment Role Provisioning):** `WledHardwareConfigCard` configures physical GPIO channels (`ChannelConfig`: GPIO pin, LED count, strip type, color order, reverse toggle) and up to 10 non-overlapping LED segments per channel (`SegmentConfig`: label, `SegmentRole` (`MAIN_FRAME` / `"Ambient"` or `BRAKE_LIGHTS` / `"Brake"`), `[startLed, endLed)`, and sequential `wledSegmentId`), with one-tap `pushHardwareAndSegments()` (`cfgOk && segOk`) to `/json/cfg` and `/json/state`.
 - **FR-TUN-01 (Live Telemetry & Manual Override):** `TuningScreen` (accessed from Settings) displays a 6.7 Hz (`150ms` sampled) state machine + Bosch `eb21` telemetry panel and a stationary Manual Override bar (`IDLE`, `CRUISING`, `BRAKING` + brightness slider) throttled to 10 Hz (`100ms`).
 - **FR-TUN-02 (Constraint Validation Warnings):** Displays non-blocking validation warnings if `globalMinBrightness > globalMaxBrightness`, `idleEnterSpeedKmh > idleExitSpeedKmh`, or `brakingMinBrightness > brakingMaxBrightness`.
 - **FR-TUN-03 (In-App Ride Replay Simulator):** `TuningReplayCard` replays any recorded 50 Hz ride session through `RideStateMachine` using the current tuning sliders and a selectable replay speed stream (`RECORDED`, `BOSCH_EB21`, or `GPS_ONLY`), reporting total simulated braking episodes, `HARD_BRAKE`/`LIGHT_BRAKE` detection accuracy (`±750ms`), and `ROAD_BUMP` false-positive rejection accuracy.

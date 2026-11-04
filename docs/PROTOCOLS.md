@@ -16,28 +16,40 @@ Pretty Nights communicates with WLED hardware (ESP8266 / ESP32) using both HTTP 
 ### A. HTTP JSON API
 - **Reference**: [WLED JSON API Documentation](https://kno.wled.ge/interfaces/json-api/)
 - **Endpoint**: `http://<wledHost>/json/state` (Default hostname: `prettylights.local`, port 80).
-- **Primary Payloads**:
+- **Composed Multi-Segment State Payload (`WledController.sendComposedState`)**:
+  Dispatches all segment looks in a single `/json/state` HTTP POST per tick with per-segment `"tt"` transition times (in `100 ms` units) and no top-level `"transition"` field so brake lights can snap at `0 ms` while ambient frame segments hold smoothly:
   ```json
   {
     "on": true,
     "bri": 255,
-    "transition": 3,
     "seg": [
       {
         "id": 0,
+        "on": true,
+        "tt": 6,
         "fx": 0,
         "sx": 128,
         "ix": 128,
         "pal": 0,
-        "col": [
-          [255, 120, 0]
-        ]
+        "col": [[0, 229, 255], [0, 0, 0], [0, 0, 0]]
+      },
+      {
+        "id": 1,
+        "on": true,
+        "tt": 0,
+        "fx": 0,
+        "sx": 128,
+        "ix": 128,
+        "pal": 0,
+        "col": [[255, 0, 0], [0, 0, 0], [0, 0, 0]]
       }
     ]
   }
   ```
 - **Preset Triggering**:
-  `{"ps": <presetId>, "bri": <briInt>}`
+  `{"on": true, "bri": <briInt>, "ps": <presetId>}`
+- **Hardware & Segment Layout Provisioning (`WledController.pushHardwareAndSegments`)**:
+  Pushes GPIO pinout (`ChannelConfig`) and current limiter (`maxCurrentMa`) to `POST /json/cfg` (`buildHardwareCfgJson`) followed by sequential global segment ranges (`[start, stop)`) across channels to `POST /json/state` (`buildSegmentLayoutJson`), returning `cfgOk && segOk`.
 - **Metadata Endpoints**:
   - `GET http://<wledHost>/presets.json`: Returns user-saved lighting presets ([WLED Presets](https://kno.wled.ge/features/presets/)).
   - `GET http://<wledHost>/json/eff`: Array of available effect names (e.g., Solid, Rainbow, Chase — [WLED Effects](https://kno.wled.ge/features/effects/)).
@@ -49,7 +61,7 @@ To eliminate Wi-Fi drops on a bicycle and support both **charged rides (wired US
    - When a USB-C to Ethernet adapter is plugged into the phone (wired to an Ethernet-enabled WLED controller such as a WT32-ETH01 or QuinLED-Dig-Uno/Quad Ethernet), `WledNetworkTransport` automatically detects the `TRANSPORT_ETHERNET` network and binds both `OkHttpClient` (`network.socketFactory` + `network::getAllByName`) and `MusicService`'s UDP socket (`network.bindSocket`) directly to the wired interface (`eth0`/`usb0`).
 2. **Priority 2 — Charging Phone: Hardened Wi-Fi (`NetworkCapabilities.TRANSPORT_WIFI`)**:
    - When the phone's USB-C port is used for charging, `WledNetworkTransport` binds `OkHttpClient` and UDP port `11988` directly to the active `TRANSPORT_WIFI` network (`wlan0`).
-   - **Blocks 5G/LTE Cellular Fallback**: When connected to `WLED-AP` (`4.3.2.1`) or a bike Wi-Fi network without internet access, Android normally marks the Wi-Fi network as unvalidated and routes traffic out over 5G/LTE cellular. Explicit `Network` socket binding prevents cellular fallback completely.
+   - **Strict Cellular Lock (`getHttpClient(): OkHttpClient?`)**: When `lockToLocalNetwork == true`, if no preferred local network (`TRANSPORT_ETHERNET` or `TRANSPORT_WIFI`) is available—or if building the network-bound `OkHttpClient` throws an exception—`getHttpClient()` returns `null` rather than `defaultHttpClient`. All `WledController` call sites check for `null` and skip the HTTP request with a warning (`"Local network required but unavailable — skipping request"`), guaranteeing WLED traffic never leaks over 5G/LTE cellular.
    - **DNS/mDNS Cache & Fast Retry**: Caches resolved local IPs per hostname and performs an immediate 1-attempt retry on transient 2.4 GHz frame loss.
 3. **Optional USB-C Serial (`115200` Baud JSON-over-Serial)**:
    - If a WLED ESP32/ESP8266 microcontroller is connected directly via USB-C OTG (`CP210x`, `CH340`, `FTDI`, or native `CDC-ACM`), `WledNetworkTransport` also mirrors the [WLED JSON API](https://kno.wled.ge/interfaces/json-api/) payload (`{"on":true,"bri":...}\n`) over USB bulk transfer.

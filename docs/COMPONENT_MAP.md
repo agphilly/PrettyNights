@@ -1,52 +1,58 @@
 # Pretty Nights — Component Map & Directory Catalog
 
-## 1. Package Directory Hierarchy (All 37 Source Files)
-
+### 1. Package Directory Hierarchy
+ 
 ```
 app/src/main/java/com/example/
 ├── MainActivity.kt               # Entry-point Activity, bottom navigation bar, edge-to-edge M3 scaffold
-├── PrettyNightsApp.kt            # Application singleton, dependency container, service bindings
+├── PrettyNightsApp.kt            # Application entrypoint hosting AppContainer
+├── AppContainer.kt               # Central dependency injection container & ViewModel factories
 ├── config/                       # Configuration persistence & data models
-│   ├── ConfigManager.kt          # AppConfig, WledLook, SpeedSource, Calibration, DataStore JSON persistence
-│   └── DomainEnums.kt            # Typed domain enums: SpeedSourceMode, SensorAxis, RideMarkerType, Io13PinRole, SegmentTarget
+│   ├── ConfigManager.kt          # AppConfig, ChannelConfig, SegmentConfig, WledLook, DataStore JSON persistence
+│   └── DomainEnums.kt            # Typed domain enums: SpeedSourceMode, SensorAxis, RideMarkerType, Io13PinRole, SegmentRoleType, SegmentRole
 ├── home/                         # Home Cockpit Dashboard & real-time monitoring
+│   ├── HomeViewModel.kt          # Home state holder & WLED/Ride/Music orchestration
 │   ├── HomeScreen.kt             # Dashboard layout: Readiness, Action Controls, Visualizer, bottom Log-Only card
 │   ├── HomeReadinessCard.kt      # WLED reachability pill (or LOG ONLY badge), Bosch BLE status, live metrics
 │   ├── HomeActionControls.kt     # Mode selector, Start/Stop CTA, In-Ride Event Marker bar, HomeLogOnlyModeCard
 │   └── HomeVisualizerCard.kt     # Interactive bike frame LED preview & 16-band live audio FFT visualizer
 ├── patterns/                     # Lighting Look customizer & WLED presets
-│   ├── PatternsScreen.kt         # Per-state look tabs (IDLE, CRUISING, BRAKING) & controller sync
+│   ├── PatternsViewModel.kt      # State holder for 4 state looks & WLED controller metadata discovery
+│   ├── PatternsScreen.kt         # Per-state look cards (IDLE, CRUISING, BRAKING, BRAKING_HOLD) & controller sync
 │   ├── StateLookCard.kt          # Expandable look card shell, Preset/Custom mode tabs, and live preview trigger
 │   ├── PresetLookSection.kt      # WLED controller preset selector dropdown & brightness override notice
-│   ├── CustomLookSection.kt      # Segment routing (IO16/IO2), effect/palette dropdowns, RGB sliders & transitions
+│   ├── CustomLookSection.kt      # Effect/palette dropdowns, 3-slot RGB sliders & per-segment transition timing
 │   └── ColorPickerSliders.kt     # Interactive 3-slot RGB color swatches and channel sliders
 ├── settings/                     # User preferences & hardware calibration (Config Tab)
+│   ├── SettingsViewModel.kt      # State holder for network, channels/segments, speed source & IMU calibration
 │   ├── SettingsScreen.kt         # System & Hardware Config container and entry point to Developer Tuning
 │   ├── WledNetworkSettingsCard.kt# WLED hostname sanitizer, UDP Audio Sync port, connection test
-│   ├── WledHardwareConfigCard.kt # NaveiTech NV-LC616WL GPIO 16/2/13, current limiter & segment provisioning
+│   ├── WledHardwareConfigCard.kt # Multi-channel GPIO & SegmentRole (Ambient/Brake) range editor & WLED provisioning
 │   ├── SpeedSourceSettingsCard.kt# Speed source selector (GPS_ONLY, BOSCH_PREFERRED, BOSCH_ONLY) & BLE status
 │   └── SensorCalibrationCard.kt  # 3-axis (X/Y/Z) & polarity (+1/-1) mount calibration + 1-tap auto-detect
 ├── tuning/                       # State machine live diagnostics, replay simulator & parameter tuning
+│   ├── TuningViewModel.kt        # State holder for live telemetry, manual override, replay simulator & parameter edits
 │   ├── TuningScreen.kt           # Developer Tuning dashboard container & reset/validation header
 │   ├── TuningTelemetryCard.kt    # 150ms sampled state machine + Bosch eb21 live diagnostic card
-│   ├── TuningManualOverrideCard.kt# Stationary manual look override (IDLE, CRUISING, BRAKING + brightness)
+│   ├── TuningManualOverrideCard.kt# Stationary manual look override (IDLE, CRUISING, BRAKING, BRAKING_HOLD + brightness)
 │   ├── TuningReplayCard.kt       # In-App Ride Replay Simulator (Recorded / Bosch eb21 / GPS speed streams)
 │   ├── TuningConfigSyncCard.kt   # JSON & Kotlin StateMachineConfig import/export bridge for Web Workbench
 │   └── TuningParameterSections.kt# Expandable parameter cards for all StateMachineConfig thresholds & fades
 ├── history/                      # Ride history, Bosch V1.0 reliability audit & CSV export
+│   ├── HistoryViewModel.kt       # State holder for recorded sessions, SQL summaries, notes & CSV export
 │   ├── HistoryScreen.kt          # Expandable session cards, Bosch V1.0 report, notes dialog, marker badges
 │   └── SessionExportHelper.kt    # 4-section unified CSV exporter shared via Android FileProvider
 ├── ride/                         # Ride lifecycle, parallel sensors, Bosch BLE & foreground services
-│   ├── RideOrchestrator.kt       # 50Hz sensor coordinator, WLED rate-limiter/Log-Only bypass, Room batch logger
+│   ├── RideOrchestrator.kt       # 50Hz sensor coordinator, role-based segment fan-out, WLED rate-limiter, Room batch logger
 │   ├── RideService.kt            # Foreground service (location) hosting RideOrchestrator with wake lock
-│   ├── MusicService.kt           # Foreground service (mediaProjection|microphone) 1024-pt FFT & UDP V2 streamer
+│   ├── MusicService.kt           # Foreground service (microphone|mediaProjection) 1024-pt FFT & UDP V2 streamer
 │   ├── SpeedProvider.kt          # Always-on parallel GpsSpeedProvider & BoschSpeedProvider + FusedSpeedProvider
 │   └── BoschLiveData.kt          # Bosch Live Data Interface V1.0 (eb20/eb21) BLE client & protobuf decoder
 ├── statemachine/                 # Core deterministic domain logic
 │   └── RideStateMachine.kt       # RideState, RideSample, StateMachineConfig, StateMachineTelemetry, evaluator
 ├── wled/                         # WLED hardware communication & local interface binding
-│   ├── WledController.kt         # Bound HTTP JSON client (/json/state, /presets.json, /json/eff, /json/pal)
-│   └── WledNetworkTransport.kt   # Dual-mode USB-C Ethernet priority, Wi-Fi socket binding & USB Serial OTG
+│   ├── WledController.kt         # Bound HTTP JSON client (sendComposedState, pushHardwareAndSegments, /presets.json, /json/eff, /json/pal)
+│   └── WledNetworkTransport.kt   # Dual-mode USB-C Ethernet priority, strict Wi-Fi socket binding & USB Serial OTG
 ├── logging/                      # Persistent SQLite database (Room v3)
 │   └── LoggingDatabase.kt        # Entities & DAOs: sessions, state_intervals, wled_intervals, imu_samples, bosch_samples, ride_markers
 ├── safety/                       # Rider distraction prevention

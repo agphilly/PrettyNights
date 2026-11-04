@@ -44,21 +44,21 @@
 
 ### B. Orchestration & Fan-Out (`RideOrchestrator`)
 - **Central Coordinator**: Receives 50 Hz sensor samples, executes state machine ticks, and fans out results:
-  1. **WLED Throttling Sink (or Log-Only Bypass)**: When `logOnlyMode == false`, sends immediate state/look changes to `WledController` while rate-limiting continuous brightness ramps to every `250 ms` (or on jumps `>= 0.10`). When `logOnlyMode == true`, bypasses WLED network traffic completely while continuing full state evaluation and telemetry recording.
-  2. **Room Database Interval & 50 Hz Batch Logger**: Records open/closed intervals for states (`StateIntervalEntity`) and WLED looks (`WledIntervalEntity`), stamps live rider markers (`RideMarkerEntity`), logs raw Bosch `eb21` protobuf packets (`BoschSampleEntity`), and batch-inserts unified 50 Hz IMU + GPS + Bosch samples (`ImuSampleEntity`) every `1200 ms`.
+  1. **Role-Based Segment Fan-Out & WLED Throttling Sink (`lookForSegment` & `evalAndSendWledSink`)**: Maps the active `RideState` to each configured segment's `SegmentRole` (`MAIN_FRAME` holds `cruisingLook` during braking; `BRAKE_LIGHTS` triggers `brakingLook` and `brakingHoldLook`). When `logOnlyMode == false`, dispatches immediate state/look changes via `WledController.sendComposedState` (single `/json/state` POST with per-segment `"tt"` transitions) while rate-limiting continuous brightness ramps to every `250 ms` (or on jumps `>= 0.10`). When `logOnlyMode == true`, bypasses WLED network traffic completely while continuing full state evaluation and telemetry recording.
+  2. **Room Database Interval & 50 Hz Batch Logger**: Records open/closed intervals for states (`StateIntervalEntity`) and representative WLED looks (`WledIntervalEntity`), stamps live rider markers (`RideMarkerEntity`), logs raw Bosch `eb21` protobuf packets (`BoschSampleEntity`), and batch-inserts unified 50 Hz IMU + GPS + Bosch samples (`ImuSampleEntity`) every `1200 ms` with automatic re-queue on insert failure and `cancelAndJoin()` flush ordering on stop.
   3. **Safety Lock Manager**: Notifies `LockController` to engage UI safety locks while the bike is in `CRUISING`, `BRAKING`, or `BRAKING_HOLD`.
   4. **Diagnostics Flow**: Emits real-time state, speed, acceleration, and Bosch `eb21` telemetry to `telemetryFlow` for live UI display.
 
 ### C. Background Foreground Services (`com.example.ride`)
 - **`RideService`**: An Android Foreground Service (`foregroundServiceType="location"`) running in the background during active rides. Keeps CPU wake locks active and orchestrates sensors, Bosch BLE, and WLED communication when the screen is off or the user navigates away.
-- **`MusicService`**: An independent Foreground Service (`foregroundServiceType="mediaProjection|microphone"`) running real-time 1024-point Hann FFT capture and 50 Hz UDP multicast (`239.0.0.1:11988`) for music-reactive lighting.
+- **`MusicService`**: An independent Foreground Service (`foregroundServiceType="microphone|mediaProjection"`) running real-time 1024-point Hann FFT capture and 50 Hz UDP multicast (`239.0.0.1:11988`) for music-reactive lighting.
 
 ### D. Configuration & Persistence (`com.example.config` & `com.example.logging`)
-- **Jetpack DataStore (`ConfigManager`)**: Serializes `AppConfig` into atomic preferences (`prettynights_config`), including `wledHost`, `audioSyncPort`, `logOnlyMode`, `speedSource`, sensor mount calibration, per-state `WledLook` profiles, and `StateMachineConfig`.
+- **Jetpack DataStore (`ConfigManager`)**: Serializes `AppConfig` into atomic preferences (`prettynights_config`), including `wledHost`, `audioSyncPort`, `logOnlyMode`, `speedSource`, sensor mount calibration, multi-channel `ChannelConfig` & `SegmentConfig` hardware layout, 4-state `WledLook` profiles (`idleLook`, `cruisingLook`, `brakingLook`, `brakingHoldLook`), and `StateMachineConfig`.
 - **Room SQLite (`LoggingDatabase`, version 3)**: Stores persistent ride history across 6 entities:
   - `sessions` (`SessionEntity`): Session ID, start/end wall-clock and monotonic timestamps, title, notes, `logOnlyMode`, and `configuredSpeedSource`.
   - `state_intervals` (`StateIntervalEntity`): State duration, transition boundaries, start/end brightness.
-  - `wled_intervals` (`WledIntervalEntity`): Exact JSON look active per episode.
+  - `wled_intervals` (`WledIntervalEntity`): Representative JSON look active per episode.
   - `imu_samples` (`ImuSampleEntity`): Unified 50 Hz raw/projected acceleration + GPS speed + merged Bosch `eb21` fields + active state.
   - `bosch_samples` (`BoschSampleEntity`): Every raw `com.bosch.ebike.LiveData` notification packet with `negotiatedMtu`, `presentFieldsMask`, decoded fields, and simultaneous GPS speed.
   - `ride_markers` (`RideMarkerEntity`): Rider-stamped in-ride ground-truth markers (`HARD_BRAKE`, `LIGHT_BRAKE`, `ROAD_BUMP`, `BOSCH_GLITCH`).
@@ -66,9 +66,9 @@
 ### E. User Interface Layer (`Jetpack Compose`)
 - Multi-tab Material 3 design with full edge-to-edge layout (`enableEdgeToEdge()`):
   - **Home (`com.example.home`)**: Readiness banner (`WLED` + `Bosch BLE`), mode selector (`Ride Mode` vs `Music Mode`), Start/Stop CTA, live **Stamp Live Event Marker** bar during rides, interactive bike/audio visualizer, and the **Log Only Mode (No WLED)** toggle card at the bottom of the screen.
-  - **Patterns (`com.example.patterns`)**: Per-state lighting look studio (`IDLE`, `CRUISING`, `BRAKING`) with preset picker, RGB color sliders, effect/palette selectors, and transition timing.
+  - **Patterns (`com.example.patterns`)**: 4-state lighting look studio (`IDLE`, `CRUISING`, `BRAKING`, `BRAKING_HOLD`) with preset picker, RGB color sliders, effect/palette selectors (with offline defaults), and per-segment transition timing.
   - **History (`com.example.history`)**: Session viewer with Bosch Live Data V1.0 reliability audit card, session notes editor, state/marker breakdowns, and 4-section CSV export (`SessionExportHelper`).
-  - **Settings (`com.example.settings`)**: WLED network host/port sanitization, live physical transport link banner (`USB-C Ethernet`, `Wi-Fi Bound`, `USB Serial`), speed source priority, 3-axis IMU calibration, and Developer Tuning navigation.
+  - **Settings (`com.example.settings`)**: WLED network host/port sanitization, live physical transport link banner (`USB-C Ethernet`, `Wi-Fi Bound`, `USB Serial`), multi-channel GPIO & `SegmentRole` (`Ambient` / `Brake`) provisioning (`WledHardwareConfigCard`), speed source priority, 3-axis IMU calibration, and Developer Tuning navigation.
   - **Tuning (`com.example.tuning`)**: 150 ms live state machine + Bosch `eb21` telemetry panel, stationary manual look override, **In-App Ride Replay Simulator** (`TuningReplayCard`), **Web Workbench Config Sync (JSON / Kotlin)** (`TuningConfigSyncCard`), and parameter sliders.
 
 ### F. Standalone Web Telemetry & State-Machine Workbench (`/tools/telemetry-workbench/`)
